@@ -177,6 +177,7 @@
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify(payload)
@@ -206,6 +207,7 @@
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'apikey': SUPABASE_ANON_KEY,
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({ job_id: jobId })
@@ -225,6 +227,8 @@
                 document.getElementById('buildBtn').textContent = '🚀 Build APK';
             } else if (result.status === 'pending') {
                 showStatus(`⏳ Building... (${result.progress || 'in progress'})`, 'pending');
+            } else if (result.status === 'not_found') {
+                showStatus(`⏳ Waiting for build to start...`, 'pending');
             }
         } catch (err) {
             console.error('Status check failed:', err);
