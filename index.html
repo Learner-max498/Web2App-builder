@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Web2App Builder</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h2 {
+            color: #333;
+            margin-top: 0;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .icon-preview {
+            width: 100%;
+            padding: 12px;
+            margin: 8px 0 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+            text-align: center;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
+        .icon-preview img {
+            max-width: 80px;
+            max-height: 80px;
+            border-radius: 16px;
+        }
+        .icon-preview.empty {
+            color: #999;
+            padding: 30px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            background: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        button:disabled {
+            background: #9ca3af;
+            cursor: not-allowed;
+        }
+        .status {
+            margin-top: 16px;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        .status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        .status.success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .status.error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        .download-link {
+            display: inline-block;
+            margin-top: 10px;
+            color: #3b82f6;
+            text-decoration: none;
+        }
+        .note {
+            font-size: 12px;
+            color: #666;
+            text-align: center;
+            margin-top: 20px;
+        }
+        input[type="file"] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>📱 Web2App Builder</h2>
+        <p>Turn any website into an Android APK with custom icon</p>
+        
+        <input type="url" id="url" placeholder="Website URL (https://...)" required>
+        <input type="text" id="appName" placeholder="App Name" required>
+        
+        <div class="icon-preview empty" onclick="document.getElementById('iconInput').click()" id="iconPreview">
+            📷 Tap to add app icon (optional)
+        </div>
+        <input type="file" id="iconInput" accept="image/png,image/jpeg,image/webp">
+        
+        <button onclick="build()" id="buildBtn">🚀 Build APK</button>
+        <div id="status"></div>
+        <div class="note">
+            ⚡ Builds take 2-3 minutes. Icon should be 512x512px for best results.
+        </div>
+    </div>
+
+    <script>
+    const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+    
+    let pollInterval = null;
+    let selectedIconBase64 = null;
+    
+    document.getElementById('iconInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                selectedIconBase64 = event.target.result;
+                const preview = document.getElementById('iconPreview');
+                preview.innerHTML = `<img src="${selectedIconBase64}" alt="App Icon"><br><small>Tap to change</small>`;
+                preview.classList.remove('empty');
+            };
+            reader.readAsDataURL(file);
+        }
+    });
+    
+    async function build() {
+        const url = document.getElementById('url').value;
+        const appName = document.getElementById('appName').value;
+        const buildBtn = document.getElementById('buildBtn');
+        
+        if (!url || !appName) {
+            showStatus('Please fill in both fields', 'error');
+            return;
+        }
+        
+        if (!url.startsWith('http')) {
+            showStatus('Please enter a valid URL starting with http:// or https://', 'error');
+            return;
+        }
+        
+        buildBtn.disabled = true;
+        buildBtn.textContent = '⏳ Starting build...';
+        showStatus('⏳ Starting build...', 'pending');
+        
+        try {
+            const payload = { 
+                url: url, 
+                app_name: appName 
+            };
+            
+            if (selectedIconBase64) {
+                payload.icon_base64 = selectedIconBase64;
+            }
+            
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/build-apk`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            });
+            
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || 'Build request failed');
+            }
+            
+            showStatus(`✅ Build started! Job ID: ${result.job_id}`, 'success');
+            
+            if (pollInterval) clearInterval(pollInterval);
+            pollInterval = setInterval(() => checkStatus(result.job_id), 5000);
+            
+        } catch (err) {
+            showStatus('Error: ' + err.message, 'error');
+            buildBtn.disabled = false;
+            buildBtn.textContent = '🚀 Build APK';
+        }
+    }
+    
+    async function checkStatus(jobId) {
+        try {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/build-status`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ job_id: jobId })
+            });
+            
+            const result = await response.json();
+            
+            if (result.status === 'completed') {
+                if (pollInterval) clearInterval(pollInterval);
+                showStatus(`✅ Build complete! <br><a href="${result.download_url}" class="download-link">📥 Click here to download your APK</a>`, 'success');
+                document.getElementById('buildBtn').disabled = false;
+                document.getElementById('buildBtn').textContent = '🚀 Build APK';
+            } else if (result.status === 'failed') {
+                if (pollInterval) clearInterval(pollInterval);
+                showStatus(`❌ Build failed: ${result.error}`, 'error');
+                document.getElementById('buildBtn').disabled = false;
+                document.getElementById('buildBtn').textContent = '🚀 Build APK';
+            } else if (result.status === 'pending') {
+                showStatus(`⏳ Building... (${result.progress || 'in progress'})`, 'pending');
+            }
+        } catch (err) {
+            console.error('Status check failed:', err);
+        }
+    }
+    
+    function showStatus(message, type) {
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = message;
+        statusDiv.className = `status ${type}`;
+    }
+    </script>
+</body>
+</html>
