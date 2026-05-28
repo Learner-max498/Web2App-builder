@@ -1,0 +1,34 @@
+name: Build WebView APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: 'Website URL'
+        required: true
+      app_name:
+        description: 'App Name'
+        required: true
+      job_id:
+        description: 'Job ID'
+        required: true
+      icon_path:
+        description: 'Icon Path'
+        required: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create Android Project
+        run: |
+          echo "Building APK for ${{ inputs.app_name }}"
+          echo "URL: ${{ inputs.url }}"
+          # Full Android project creation will go here
+          touch app-release.apk
+          
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ inputs.app_name }}
+          path: app-release.apk
