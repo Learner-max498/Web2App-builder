@@ -170,14 +170,25 @@ jobs:
       - name: Build APK
         run: ./gradlew assembleDebug --no-daemon
 
-      - name: Mark build complete
+      - name: Upload APK to Supabase and mark complete
         if: success()
         run: |
+          APK_FILE=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -1)
+          FILENAME="${{ github.event.inputs.job_id }}.apk"
+
+          curl -s -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/apk-builds/${FILENAME}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @"${APK_FILE}"
+
+          DOWNLOAD_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/apk-builds/${FILENAME}"
+
           curl -s -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/builds?id=eq.${{ github.event.inputs.job_id }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"status":"completed","progress":"Done"}'
+            -d "{\"status\":\"completed\",\"progress\":\"Done\",\"download_url\":\"${DOWNLOAD_URL}\"}"
 
       - name: Mark build failed
         if: failure()
@@ -187,11 +198,3 @@ jobs:
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
             -d '{"status":"failed","progress":"Build error","error":"Gradle build failed"}'
-
-      - name: Upload APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ github.event.inputs.app_name }}-${{ github.run_number }}
-          path: app/build/outputs/apk/debug/*.apk
-          retention-days: 7
