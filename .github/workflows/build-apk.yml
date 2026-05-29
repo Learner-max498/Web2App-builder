@@ -198,6 +198,11 @@ jobs:
               buildTypes {
                   debug { debuggable true }
               }
+              bundle {
+                  language { enableSplit = false }
+                  density { enableSplit = false }
+                  abi { enableSplit = false }
+              }
           }
           dependencies {
           }
@@ -247,28 +252,37 @@ jobs:
           wget -q "https://github.com/gradle/gradle/raw/v8.2.0/gradle/wrapper/gradle-wrapper.jar" \
             -O gradle/wrapper/gradle-wrapper.jar
 
-      - name: Build APK
-        run: ./gradlew assembleDebug --no-daemon
+      - name: Build APK and AAB
+        run: ./gradlew assembleDebug bundleDebug --no-daemon
 
-      - name: Upload APK to Supabase and mark complete
+      - name: Upload APK and AAB to Supabase and mark complete
         if: success()
         run: |
           APK_FILE=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -1)
-          FILENAME="${{ github.event.inputs.job_id }}.apk"
+          AAB_FILE=$(find app/build/outputs/bundle/debug/ -name "*.aab" | head -1)
+          APK_FILENAME="${{ github.event.inputs.job_id }}.apk"
+          AAB_FILENAME="${{ github.event.inputs.job_id }}.aab"
 
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/apk-builds/${FILENAME}" \
+          curl -s -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/apk-builds/${APK_FILENAME}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/vnd.android.package-archive" \
             --data-binary @"${APK_FILE}"
 
-          DOWNLOAD_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/apk-builds/${FILENAME}"
+          curl -s -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/apk-builds/${AAB_FILENAME}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"${AAB_FILE}"
+
+          DOWNLOAD_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/apk-builds/${APK_FILENAME}"
+          AAB_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/apk-builds/${AAB_FILENAME}"
 
           curl -s -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/builds?id=eq.${{ github.event.inputs.job_id }}" \
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d "{\"status\":\"completed\",\"progress\":\"Done\",\"download_url\":\"${DOWNLOAD_URL}\"}"
+            -d "{\"status\":\"completed\",\"progress\":\"Done\",\"download_url\":\"${DOWNLOAD_URL}\",\"aab_url\":\"${AAB_URL}\"}"
 
       - name: Mark build failed
         if: failure()
