@@ -19,16 +19,192 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+      
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Mark build as started
+        run: |
+          curl -s -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/builds?id=eq.${{ github.event.inputs.job_id }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"building","progress":"Setting up Android project..."}'
+
       - name: Create Android Project
         run: |
-          echo "Building APK for ${{ inputs.app_name }}"
-          echo "URL: ${{ inputs.url }}"
-          # Full Android project creation will go here
-          touch app-release.apk
+          mkdir -p app/src/main/java/com/web2app/app/
+          mkdir -p app/src/main/res/layout/
+          mkdir -p app/src/main/res/mipmap-hdpi/
+          mkdir -p app/src/main/res/values/
+          mkdir -p gradle/wrapper/
+
+          # Sanitize app name for package (lowercase, no spaces)
+          APP_PKG=$(echo "${{ github.event.inputs.app_name }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//')
+
+          cat > app/src/main/AndroidManifest.xml << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.web2app.${APP_PKG}">
+              <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+              <application
+                  android:allowBackup="true"
+                  android:label="${{ github.event.inputs.app_name }}"
+                  android:usesCleartextTraffic="true">
+                  <activity
+                      android:name=".MainActivity"
+                      android:configChanges="orientation|screenSize"
+                      android:exported="true">
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN"/>
+                          <category android:name="android.intent.category.LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>
+          EOF
+
+          cat > app/src/main/java/com/web2app/app/MainActivity.java << EOF
+          package com.web2app.${APP_PKG};
+          import android.os.Bundle;
+          import android.webkit.WebView;
+          import android.webkit.WebViewClient;
+          import android.webkit.WebSettings;
+          import androidx.appcompat.app.AppCompatActivity;
+          public class MainActivity extends AppCompatActivity {
+              private WebView webView;
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  webView = new WebView(this);
+                  webView.setWebViewClient(new WebViewClient());
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  webView.loadUrl("${{ github.event.inputs.url }}");
+                  setContentView(webView);
+              }
+              @Override
+              public void onBackPressed() {
+                  if (webView.canGoBack()) webView.goBack();
+                  else super.onBackPressed();
+              }
+          }
+          EOF
+
+          cat > app/src/main/res/values/strings.xml << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <string name="app_name">${{ github.event.inputs.app_name }}</string>
+          </resources>
+          EOF
+
+          cat > app/build.gradle << EOF
+          plugins {
+              id 'com.android.application'
+          }
+          android {
+              namespace 'com.web2app.${APP_PKG}'
+              compileSdk 34
+              defaultConfig {
+                  applicationId 'com.web2app.${APP_PKG}'
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName '1.0'
+              }
+              buildTypes {
+                  debug {
+                      debuggable true
+                  }
+              }
+          }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
+          EOF
+
+          cat > settings.gradle << EOF
+          pluginManagement {
+              repositories { google(); mavenCentral(); gradlePluginPortal() }
+          }
+          dependencyResolutionManagement {
+              repositories { google(); mavenCentral() }
+          }
+          rootProject.name = 'Web2App'
+          include ':app'
+          EOF
+
+          cat > build.gradle << EOF
+          buildscript {
+              repositories { google(); mavenCentral() }
+              dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
+          }
+          EOF
+
+          cat > gradle/wrapper/gradle-wrapper.properties << EOF
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
+
+          # Download gradle wrapper jar
+          curl -sL "https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradle/wrapper/gradle-wrapper.jar" \
+            -o gradle/wrapper/gradle-wrapper.jar
+
+          # Generate gradlew script
+          curl -sL "https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew" -o gradlew
+          chmod +x gradlew
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK to Supabase Storage
+        id: upload
+        run: |
+          APK_PATH=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -1)
+          FILENAME="${{ github.event.inputs.app_name }}-${{ github.event.inputs.job_id }}.apk"
           
-      - name: Upload APK
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ inputs.app_name }}
-          path: app-release.apk
+          # Upload to Supabase storage
+          UPLOAD_RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/apk-builds/${FILENAME}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @"${APK_PATH}")
+          
+          HTTP_CODE=$(echo "$UPLOAD_RESPONSE" | tail -1)
+          echo "Upload HTTP status: $HTTP_CODE"
+          
+          DOWNLOAD_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/apk-builds/${FILENAME}"
+          echo "download_url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
+
+      - name: Mark build complete
+        run: |
+          curl -s -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/builds?id=eq.${{ github.event.inputs.job_id }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"completed\",\"download_url\":\"${{ steps.upload.outputs.download_url }}\",\"progress\":\"Done\"}"
+
+      - name: Mark build failed on error
+        if: failure()
+        run: |
+          curl -s -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/builds?id=eq.${{ github.event.inputs.job_id }}" \
+            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"failed","progress":"Build error - check GitHub Actions logs"}'
