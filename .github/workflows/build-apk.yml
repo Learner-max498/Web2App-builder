@@ -12,6 +12,10 @@ on:
       job_id:
         description: 'Job ID'
         required: true
+      icon_path:
+        description: 'Icon Path'
+        required: false
+        default: ''
 
 jobs:
   build:
@@ -27,21 +31,25 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       
-      - name: Create Android Project
+      - name: Download icon from Supabase
+        if: inputs.icon_path != ''
         run: |
-          mkdir -p app/src/main/java/com/web2app/
+          echo "Icon will be downloaded from: ${{ inputs.icon_path }}"
           mkdir -p app/src/main/res/mipmap-hdpi/
           mkdir -p app/src/main/res/mipmap-mdpi/
           mkdir -p app/src/main/res/mipmap-xhdpi/
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
+      
+      - name: Create Android Project
+        run: |
+          mkdir -p app/src/main/java/com/web2app/
           
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="com.web2app.webbrowser">
               <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
               <application
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
