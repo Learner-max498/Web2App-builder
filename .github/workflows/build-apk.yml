@@ -45,6 +45,19 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xhdpi/
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
+          mkdir -p app/src/main/res/values/
+
+          # Create black theme to remove white splash/border
+          cat > app/src/main/res/values/styles.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="android:Theme.Black">
+                  <item name="android:windowBackground">@android:color/black</item>
+                  <item name="android:windowNoTitle">true</item>
+                  <item name="android:windowFullscreen">false</item>
+              </style>
+          </resources>
+          EOF
 
           # Handle custom icon
           ICON_PATH="${{ github.event.inputs.icon_path }}"
@@ -54,7 +67,6 @@ jobs:
             curl -s "${{ secrets.SUPABASE_URL }}/storage/v1/object/public/app-icons/${ICON_PATH}" \
               -o /tmp/icon_orig.png
 
-            # Force fill entire canvas with no padding using !
             convert /tmp/icon_orig.png -resize 192x192! app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
             convert /tmp/icon_orig.png -resize 144x144! app/src/main/res/mipmap-xxhdpi/ic_launcher.png
             convert /tmp/icon_orig.png -resize 96x96!   app/src/main/res/mipmap-xhdpi/ic_launcher.png
@@ -81,6 +93,7 @@ jobs:
               <application
                   android:allowBackup="true"
                   ${ICON_ATTR}
+                  android:theme="@style/AppTheme"
                   android:label="${{ github.event.inputs.app_name }}"
                   android:usesCleartextTraffic="true">
                   <activity
