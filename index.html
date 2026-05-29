@@ -159,10 +159,19 @@
         if (file && file.type.startsWith('image/')) {
             const reader = new FileReader();
             reader.onload = function(event) {
-                selectedIconBase64 = event.target.result;
-                const preview = document.getElementById('iconPreview');
-                preview.innerHTML = `<img src="${selectedIconBase64}" alt="App Icon"><br><small>Tap to change</small>`;
-                preview.classList.remove('empty');
+                const img = new Image();
+                img.onload = function() {
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 512;
+                    canvas.height = 512;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, 512, 512);
+                    selectedIconBase64 = canvas.toDataURL('image/png', 0.8);
+                    const preview = document.getElementById('iconPreview');
+                    preview.innerHTML = `<img src="${selectedIconBase64}" alt="App Icon"><br><small>Tap to change</small>`;
+                    preview.classList.remove('empty');
+                };
+                img.src = event.target.result;
             };
             reader.readAsDataURL(file);
         }
