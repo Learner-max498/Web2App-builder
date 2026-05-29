@@ -87,10 +87,11 @@
             color: #991b1b;
         }
         .download-link {
-            display: inline-block;
+            display: block;
             margin-top: 10px;
             color: #3b82f6;
             text-decoration: none;
+            font-weight: bold;
         }
         .note {
             font-size: 12px;
@@ -189,7 +190,7 @@
                 throw new Error(result.error || 'Build request failed');
             }
             
-            showStatus(`✅ Build complete! <br><a href="${result.download_url}" class="download-link">📥 Download APK</a><br><a href="${result.aab_url}" class="download-link">📦 Download AAB (Google Play)</a>`, 'success');
+            showStatus(`⏳ Build started! Job ID: ${result.job_id}<br>Please wait 2-3 minutes...`, 'pending');
             
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(() => checkStatus(result.job_id), 5000);
@@ -217,7 +218,12 @@
             
             if (result.status === 'completed') {
                 if (pollInterval) clearInterval(pollInterval);
-                showStatus(`✅ Build complete! <br><a href="${result.download_url}" class="download-link">📥 Click here to download your APK</a>`, 'success');
+                showStatus(
+                    `✅ Build complete!` +
+                    `<br><a href="${result.download_url}" class="download-link">📥 Download APK</a>` +
+                    `<br><a href="${result.aab_url}" class="download-link">📦 Download AAB (Google Play)</a>`,
+                    'success'
+                );
                 document.getElementById('buildBtn').disabled = false;
                 document.getElementById('buildBtn').textContent = '🚀 Build APK';
             } else if (result.status === 'failed') {
