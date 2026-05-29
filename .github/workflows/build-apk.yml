@@ -41,15 +41,18 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
 
-          # Download custom icon if provided
+          # Handle custom icon
           ICON_PATH="${{ github.event.inputs.icon_path }}"
           if [ -n "$ICON_PATH" ]; then
+            sudo apt-get install -q imagemagick -y
             curl -s "${{ secrets.SUPABASE_URL }}/storage/v1/object/public/app-icons/${ICON_PATH}" \
               -o /tmp/icon.png
-            for size in hdpi mdpi xhdpi xxhdpi xxxhdpi; do
-              cp /tmp/icon.png app/src/main/res/mipmap-${size}/ic_launcher.png
-            done
-            ICON_ATTR='android:icon="@mipmap/ic_launcher"'
+            convert /tmp/icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            convert /tmp/icon.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            convert /tmp/icon.png -resize 96x96   app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            convert /tmp/icon.png -resize 72x72   app/src/main/res/mipmap-hdpi/ic_launcher.png
+            convert /tmp/icon.png -resize 48x48   app/src/main/res/mipmap-mdpi/ic_launcher.png
+            ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher"'
           else
             ICON_ATTR=''
           fi
@@ -82,7 +85,9 @@ jobs:
           package com.web2app.webbrowser;
 
           import android.app.Activity;
+          import android.graphics.Color;
           import android.os.Bundle;
+          import android.view.Window;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import android.webkit.WebSettings;
@@ -94,13 +99,33 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+                  requestWindowFeature(Window.FEATURE_NO_TITLE);
+
                   webView = new WebView(this);
-                  WebSettings webSettings = webView.getSettings();
-                  webSettings.setJavaScriptEnabled(true);
-                  webSettings.setDomStorageEnabled(true);
-                  webSettings.setAllowFileAccess(true);
-                  webSettings.setMediaPlaybackRequiresUserGesture(false);
-                  webView.setWebViewClient(new WebViewClient());
+                  webView.setBackgroundColor(Color.WHITE);
+
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setUseWideViewPort(true);
+                  s.setBuiltInZoomControls(false);
+                  s.setSupportZoom(false);
+                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  s.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setDatabaseEnabled(true);
+                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                          view.loadUrl(url);
+                          return true;
+                      }
+                  });
                   webView.setWebChromeClient(new WebChromeClient());
                   webView.loadUrl("${{ github.event.inputs.url }}");
                   setContentView(webView);
