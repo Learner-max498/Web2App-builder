@@ -105,6 +105,7 @@ jobs:
               id 'com.android.application'
           }
           android {
+              namespace "com.web2app.webbrowser"
               compileSdk 34
               defaultConfig {
                   applicationId "com.web2app.webbrowser"
@@ -160,11 +161,9 @@ jobs:
           zipStorePath=wrapper/dists
           EOF
 
-          # Download gradlew script
           wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -O gradlew
           chmod +x gradlew
 
-          # Download gradle wrapper jar (REQUIRED - this was missing before)
           wget -q "https://github.com/gradle/gradle/raw/v8.2.0/gradle/wrapper/gradle-wrapper.jar" \
             -O gradle/wrapper/gradle-wrapper.jar
 
@@ -187,7 +186,7 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"status":"failed","progress":"Build error"}'
+            -d '{"status":"failed","progress":"Build error","error":"Gradle build failed"}'
 
       - name: Upload APK
         if: success()
