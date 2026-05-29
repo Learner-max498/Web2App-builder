@@ -41,10 +41,11 @@ jobs:
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="com.web2app.webbrowser">
               <uses-permission android:name="android.permission.INTERNET"/>
+              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
               <application
                   android:allowBackup="true"
                   android:icon="@mipmap/ic_launcher"
-                  android:label="Web2App"
+                  android:label="${{ github.event.inputs.app_name }}"
                   android:usesCleartextTraffic="true">
                   <activity
                       android:name=".MainActivity"
@@ -78,7 +79,8 @@ jobs:
                   webView.setWebViewClient(new WebViewClient());
                   WebSettings webSettings = webView.getSettings();
                   webSettings.setJavaScriptEnabled(true);
-                  webView.loadUrl("https://example.com");
+                  webSettings.setDomStorageEnabled(true);
+                  webView.loadUrl("${{ github.event.inputs.url }}");
                   setContentView(webView);
               }
               
@@ -92,9 +94,7 @@ jobs:
               }
           }
           EOF
-      
-      - name: Create gradle.properties
-        run: |
+          
           cat > gradle.properties << 'EOF'
           android.useAndroidX=true
           android.enableJetifier=true
@@ -112,7 +112,7 @@ jobs:
               compileSdk 34
               
               defaultConfig {
-                  applicationId "com.web2app.webbrowser"
+                  applicationId "com.web2app.${{ github.event.inputs.app_name }}"
                   minSdk 21
                   targetSdk 34
                   versionCode 1
@@ -146,6 +146,7 @@ jobs:
                   mavenCentral()
               }
           }
+          rootProject.name = "Web2App"
           include ':app'
           EOF
           
@@ -172,18 +173,17 @@ jobs:
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
           EOF
-      
-      - name: Generate Gradle Wrapper
-        run: |
-          chmod +x gradlew 2>/dev/null || true
+          
+          wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -O gradlew
+          chmod +x gradlew
       
       - name: Build APK
         run: |
-          chmod +x gradlew 2>/dev/null || true
           ./gradlew assembleDebug --no-daemon
       
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ github.event.inputs.app_name }}-app
+          name: ${{ github.event.inputs.app_name }}-${{ github.run_number }}
           path: app/build/outputs/apk/debug/*.apk
+          retention-days: 7
