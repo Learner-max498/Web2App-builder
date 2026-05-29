@@ -173,7 +173,7 @@
                 payload.icon_base64 = selectedIconBase64;
             }
             
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/build-apk`, {
+            const response = await fetch(`${SUPABASE_URL}/functions/v1/smooth-responder`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
