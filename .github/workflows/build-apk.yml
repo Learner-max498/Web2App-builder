@@ -48,7 +48,6 @@ jobs:
           mkdir -p app/src/main/res/mipmap-anydpi-v26/
           mkdir -p app/src/main/res/values/
 
-          # Create black theme
           cat > app/src/main/res/values/styles.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -60,7 +59,6 @@ jobs:
           </resources>
           EOF
 
-          # Handle custom icon
           ICON_PATH="${{ github.event.inputs.icon_path }}"
           if [ -n "$ICON_PATH" ]; then
             sudo apt-get install -q imagemagick -y
@@ -80,29 +78,28 @@ jobs:
             cp app/src/main/res/mipmap-hdpi/ic_launcher.png    app/src/main/res/mipmap-hdpi/ic_launcher_round.png
             cp app/src/main/res/mipmap-mdpi/ic_launcher.png    app/src/main/res/mipmap-mdpi/ic_launcher_round.png
 
-            # Create adaptive icons
-            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF2'
             <?xml version="1.0" encoding="utf-8"?>
             <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
                 <background android:drawable="@android:color/black"/>
                 <foreground android:drawable="@mipmap/ic_launcher"/>
             </adaptive-icon>
-            EOF
+            EOF2
 
-            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
+            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF3'
             <?xml version="1.0" encoding="utf-8"?>
             <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
                 <background android:drawable="@android:color/black"/>
                 <foreground android:drawable="@mipmap/ic_launcher"/>
             </adaptive-icon>
-            EOF
+            EOF3
 
             ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
           else
             ICON_ATTR=''
           fi
 
-          cat > app/src/main/AndroidManifest.xml << EOF
+          cat > app/src/main/AndroidManifest.xml << EOF4
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="${PKG_NAME}">
@@ -125,9 +122,9 @@ jobs:
                   </activity>
               </application>
           </manifest>
-          EOF
+          EOF4
 
-          cat > app/src/main/java/$(echo $PKG_NAME | tr '.' '/')/MainActivity.java << EOF
+          cat > app/src/main/java/$(echo $PKG_NAME | tr '.' '/')/MainActivity.java << EOF5
           package ${PKG_NAME};
 
           import android.app.Activity;
@@ -191,15 +188,15 @@ jobs:
                   }
               }
           }
-          EOF
+          EOF5
 
-          cat > gradle.properties << 'EOF'
+          cat > gradle.properties << 'EOF6'
           android.useAndroidX=true
           android.enableJetifier=true
           org.gradle.jvmargs=-Xmx2048m
-          EOF
+          EOF6
 
-          cat > app/build.gradle << EOF
+          cat > app/build.gradle << EOF7
           plugins {
               id 'com.android.application'
           }
@@ -214,14 +211,16 @@ jobs:
                   versionName "1.0"
               }
               buildTypes {
-                  debug { debuggable true }
+                  debug {
+                      debuggable true
+                  }
               }
           }
           dependencies {
           }
-          EOF
+          EOF7
 
-          cat > settings.gradle << 'EOF'
+          cat > settings.gradle << 'EOF8'
           pluginManagement {
               repositories {
                   google()
@@ -237,9 +236,9 @@ jobs:
           }
           rootProject.name = "Web2App"
           include ':app'
-          EOF
+          EOF8
 
-          cat > build.gradle << 'EOF'
+          cat > build.gradle << 'EOF9'
           buildscript {
               repositories {
                   google()
@@ -249,15 +248,15 @@ jobs:
                   classpath 'com.android.tools.build:gradle:8.1.4'
               }
           }
-          EOF
+          EOF9
 
-          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF10'
           distributionBase=GRADLE_USER_HOME
           distributionPath=wrapper/dists
           distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
-          EOF
+          EOF10
 
           wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -O gradlew
           chmod +x gradlew
