@@ -33,22 +33,67 @@ jobs:
 
       - name: Create Android Project
         run: |
-          PKG_NAME="com.web2app.webbrowser"
-          mkdir -p app/src/main/java/com/web2app/webbrowser/
+          # Generate safe unique package name
+          PKG_SUFFIX=$(echo "${{ github.event.inputs.app_name }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
+          PKG_NAME="com.web2app.${PKG_SUFFIX}"
+          echo "Package name: ${PKG_NAME}"
+
+          mkdir -p app/src/main/java/$(echo $PKG_NAME | tr '.' '/')/
           mkdir -p gradle/wrapper/
           mkdir -p app/src/main/res/mipmap-hdpi/
+          mkdir -p app/src/main/res/mipmap-mdpi/
+          mkdir -p app/src/main/res/mipmap-xhdpi/
+          mkdir -p app/src/main/res/mipmap-xxhdpi/
+          mkdir -p app/src/main/res/mipmap-xxxhdpi/
           mkdir -p app/src/main/res/values/
 
-          # Create AndroidManifest.xml
-          cat > app/src/main/AndroidManifest.xml << 'MANIFEST_EOF'
+          # Create black theme to remove white splash/border
+          cat > app/src/main/res/values/styles.xml << 'EOF'
+          <?xml version="1.0" encoding="utf-8"?>
+          <resources>
+              <style name="AppTheme" parent="android:Theme.Black">
+                  <item name="android:windowBackground">@android:color/black</item>
+                  <item name="android:windowNoTitle">true</item>
+                  <item name="android:windowFullscreen">false</item>
+              </style>
+          </resources>
+          EOF
+
+          # Handle custom icon
+          ICON_PATH="${{ github.event.inputs.icon_path }}"
+          if [ -n "$ICON_PATH" ]; then
+            sudo apt-get install -q imagemagick -y
+
+            curl -s "${{ secrets.SUPABASE_URL }}/storage/v1/object/public/app-icons/${ICON_PATH}" \
+              -o /tmp/icon_orig.png
+
+            convert /tmp/icon_orig.png -resize 192x192! app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 144x144! app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 96x96!   app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 72x72!   app/src/main/res/mipmap-hdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 48x48!   app/src/main/res/mipmap-mdpi/ic_launcher.png
+
+            cp app/src/main/res/mipmap-xxxhdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-xxhdpi/ic_launcher.png  app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-xhdpi/ic_launcher.png   app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-hdpi/ic_launcher.png    app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-mdpi/ic_launcher.png    app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+
+            ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
+          else
+            ICON_ATTR=''
+          fi
+
+          cat > app/src/main/AndroidManifest.xml << EOF
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="com.web2app.webbrowser">
+              package="${PKG_NAME}">
               <uses-permission android:name="android.permission.INTERNET"/>
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
               <application
                   android:allowBackup="true"
-                  android:icon="@mipmap/ic_launcher"
+                  ${ICON_ATTR}
+                  android:theme="@style/AppTheme"
                   android:label="${{ github.event.inputs.app_name }}"
                   android:usesCleartextTraffic="true">
                   <activity
@@ -62,17 +107,19 @@ jobs:
                   </activity>
               </application>
           </manifest>
-          MANIFEST_EOF
+          EOF
 
-          # Create MainActivity.java
-          cat > app/src/main/java/com/web2app/webbrowser/MainActivity.java << 'JAVA_EOF'
-          package com.web2app.webbrowser;
+          cat > app/src/main/java/$(echo $PKG_NAME | tr '.' '/')/MainActivity.java << EOF
+          package ${PKG_NAME};
 
           import android.app.Activity;
+          import android.graphics.Color;
           import android.os.Bundle;
+          import android.view.Window;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import android.webkit.WebSettings;
+          import android.webkit.WebChromeClient;
 
           public class MainActivity extends Activity {
               private WebView webView;
@@ -80,11 +127,39 @@ jobs:
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
+                  requestWindowFeature(Window.FEATURE_NO_TITLE);
+
                   webView = new WebView(this);
-                  WebSettings webSettings = webView.getSettings();
-                  webSettings.setJavaScriptEnabled(true);
-                  webSettings.setDomStorageEnabled(true);
-                  webView.setWebViewClient(new WebViewClient());
+                  webView.setBackgroundColor(Color.BLACK);
+                  webView.setAlpha(0f);
+
+                  WebSettings s = webView.getSettings();
+                  s.setJavaScriptEnabled(true);
+                  s.setDomStorageEnabled(true);
+                  s.setAllowFileAccess(true);
+                  s.setAllowContentAccess(true);
+                  s.setLoadWithOverviewMode(true);
+                  s.setUseWideViewPort(true);
+                  s.setBuiltInZoomControls(false);
+                  s.setSupportZoom(false);
+                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+                  s.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+                  s.setMediaPlaybackRequiresUserGesture(false);
+                  s.setDatabaseEnabled(true);
+                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
+
+                  webView.setWebViewClient(new WebViewClient() {
+                      @Override
+                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
+                          view.loadUrl(url);
+                          return true;
+                      }
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          view.animate().alpha(1f).setDuration(200).start();
+                      }
+                  });
+                  webView.setWebChromeClient(new WebChromeClient());
                   webView.loadUrl("${{ github.event.inputs.url }}");
                   setContentView(webView);
               }
@@ -98,35 +173,37 @@ jobs:
                   }
               }
           }
-          JAVA_EOF
+          EOF
 
-          # Create gradle.properties
-          cat > gradle.properties << 'GRADLE_PROP_EOF'
+          cat > gradle.properties << 'EOF'
           android.useAndroidX=true
           android.enableJetifier=true
           org.gradle.jvmargs=-Xmx2048m
-          GRADLE_PROP_EOF
+          EOF
 
-          # Create app/build.gradle
-          cat > app/build.gradle << 'APP_GRADLE_EOF'
+          cat > app/build.gradle << EOF
           plugins {
               id 'com.android.application'
           }
           android {
-              namespace 'com.web2app.webbrowser'
+              namespace "${PKG_NAME}"
               compileSdk 34
               defaultConfig {
-                  applicationId 'com.web2app.webbrowser'
+                  applicationId "${PKG_NAME}"
                   minSdk 21
                   targetSdk 34
                   versionCode 1
-                  versionName '1.0'
+                  versionName "1.0"
+              }
+              buildTypes {
+                  debug { debuggable true }
               }
           }
-          APP_GRADLE_EOF
+          dependencies {
+          }
+          EOF
 
-          # Create settings.gradle
-          cat > settings.gradle << 'SETTINGS_EOF'
+          cat > settings.gradle << 'EOF'
           pluginManagement {
               repositories {
                   google()
@@ -142,10 +219,9 @@ jobs:
           }
           rootProject.name = "Web2App"
           include ':app'
-          SETTINGS_EOF
+          EOF
 
-          # Create build.gradle
-          cat > build.gradle << 'BUILD_EOF'
+          cat > build.gradle << 'EOF'
           buildscript {
               repositories {
                   google()
@@ -155,22 +231,19 @@ jobs:
                   classpath 'com.android.tools.build:gradle:8.1.4'
               }
           }
-          BUILD_EOF
+          EOF
 
-          # Create gradle wrapper properties
-          cat > gradle/wrapper/gradle-wrapper.properties << 'WRAPPER_EOF'
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
           distributionBase=GRADLE_USER_HOME
           distributionPath=wrapper/dists
           distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
           zipStoreBase=GRADLE_USER_HOME
           zipStorePath=wrapper/dists
-          WRAPPER_EOF
+          EOF
 
-          # Download gradlew
           wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -O gradlew
           chmod +x gradlew
 
-          # Download gradle-wrapper.jar
           wget -q "https://github.com/gradle/gradle/raw/v8.2.0/gradle/wrapper/gradle-wrapper.jar" \
             -O gradle/wrapper/gradle-wrapper.jar
 
@@ -204,4 +277,4 @@ jobs:
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"status":"failed","progress":"Build error"}'
+            -d '{"status":"failed","progress":"Build error","error":"Gradle build failed"}'
