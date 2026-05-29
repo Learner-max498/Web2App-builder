@@ -35,8 +35,26 @@ jobs:
         run: |
           mkdir -p app/src/main/java/com/web2app/
           mkdir -p gradle/wrapper/
+          mkdir -p app/src/main/res/mipmap-hdpi/
+          mkdir -p app/src/main/res/mipmap-mdpi/
+          mkdir -p app/src/main/res/mipmap-xhdpi/
+          mkdir -p app/src/main/res/mipmap-xxhdpi/
+          mkdir -p app/src/main/res/mipmap-xxxhdpi/
 
-          cat > app/src/main/AndroidManifest.xml << 'EOF'
+          # Download custom icon if provided
+          ICON_PATH="${{ github.event.inputs.icon_path }}"
+          if [ -n "$ICON_PATH" ]; then
+            curl -s "${{ secrets.SUPABASE_URL }}/storage/v1/object/public/app-icons/${ICON_PATH}" \
+              -o /tmp/icon.png
+            for size in hdpi mdpi xhdpi xxhdpi xxxhdpi; do
+              cp /tmp/icon.png app/src/main/res/mipmap-${size}/ic_launcher.png
+            done
+            ICON_ATTR='android:icon="@mipmap/ic_launcher"'
+          else
+            ICON_ATTR=''
+          fi
+
+          cat > app/src/main/AndroidManifest.xml << EOF
           <?xml version="1.0" encoding="utf-8"?>
           <manifest xmlns:android="http://schemas.android.com/apk/res/android"
               package="com.web2app.webbrowser">
@@ -44,6 +62,7 @@ jobs:
               <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
               <application
                   android:allowBackup="true"
+                  ${ICON_ATTR}
                   android:label="${{ github.event.inputs.app_name }}"
                   android:usesCleartextTraffic="true">
                   <activity
@@ -62,23 +81,27 @@ jobs:
           cat > app/src/main/java/com/web2app/MainActivity.java << 'EOF'
           package com.web2app.webbrowser;
 
+          import android.app.Activity;
           import android.os.Bundle;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import android.webkit.WebSettings;
-          import androidx.appcompat.app.AppCompatActivity;
+          import android.webkit.WebChromeClient;
 
-          public class MainActivity extends AppCompatActivity {
+          public class MainActivity extends Activity {
               private WebView webView;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   webView = new WebView(this);
-                  webView.setWebViewClient(new WebViewClient());
                   WebSettings webSettings = webView.getSettings();
                   webSettings.setJavaScriptEnabled(true);
                   webSettings.setDomStorageEnabled(true);
+                  webSettings.setAllowFileAccess(true);
+                  webSettings.setMediaPlaybackRequiresUserGesture(false);
+                  webView.setWebViewClient(new WebViewClient());
+                  webView.setWebChromeClient(new WebChromeClient());
                   webView.loadUrl("${{ github.event.inputs.url }}");
                   setContentView(webView);
               }
@@ -119,7 +142,6 @@ jobs:
               }
           }
           dependencies {
-              implementation 'androidx.appcompat:appcompat:1.6.1'
           }
           EOF
 
