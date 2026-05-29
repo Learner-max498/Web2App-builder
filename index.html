@@ -189,7 +189,7 @@
                 throw new Error(result.error || 'Build request failed');
             }
             
-            showStatus(`✅ Build started! Job ID: ${result.job_id}`, 'success');
+            showStatus(`✅ Build complete! <br><a href="${result.download_url}" class="download-link">📥 Download APK</a><br><a href="${result.aab_url}" class="download-link">📦 Download AAB (Google Play)</a>`, 'success');
             
             if (pollInterval) clearInterval(pollInterval);
             pollInterval = setInterval(() => checkStatus(result.job_id), 5000);
