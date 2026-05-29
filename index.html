@@ -86,11 +86,34 @@
             background: #fee2e2;
             color: #991b1b;
         }
-        .download-link {
-            display: inline-block;
+        .download-links {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
             margin-top: 10px;
-            color: #3b82f6;
+        }
+        .download-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 12px;
+            border-radius: 6px;
             text-decoration: none;
+            font-weight: 500;
+            font-size: 14px;
+        }
+        .download-link.apk {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #6ee7b7;
+        }
+        .download-link.aab {
+            background: #dbeafe;
+            color: #1e40af;
+            border: 1px solid #93c5fd;
+        }
+        .download-link:hover {
+            opacity: 0.85;
         }
         .note {
             font-size: 12px;
@@ -106,7 +129,7 @@
 <body>
     <div class="container">
         <h2>📱 Web2App Builder</h2>
-        <p>Turn any website into an Android APK with custom icon</p>
+        <p>Turn any website into an Android APK + AAB with custom icon</p>
         
         <input type="url" id="url" placeholder="Website URL (https://...)" required>
         <input type="text" id="appName" placeholder="App Name" required>
@@ -116,10 +139,11 @@
         </div>
         <input type="file" id="iconInput" accept="image/png,image/jpeg,image/webp">
         
-        <button onclick="build()" id="buildBtn">🚀 Build APK</button>
+        <button onclick="build()" id="buildBtn">🚀 Build APK + AAB</button>
         <div id="status"></div>
         <div class="note">
-            ⚡ Builds take 2-3 minutes. Icon should be 512x512px for best results.
+            ⚡ Builds take 2-3 minutes. Icon should be 512x512px for best results.<br>
+            APK = sideload/test &nbsp;|&nbsp; AAB = Google Play Store upload
         </div>
     </div>
 
@@ -197,7 +221,7 @@
         } catch (err) {
             showStatus('Error: ' + err.message, 'error');
             buildBtn.disabled = false;
-            buildBtn.textContent = '🚀 Build APK';
+            buildBtn.textContent = '🚀 Build APK + AAB';
         }
     }
     
@@ -217,14 +241,26 @@
             
             if (result.status === 'completed') {
                 if (pollInterval) clearInterval(pollInterval);
-                showStatus(`✅ Build complete! <br><a href="${result.download_url}" class="download-link">📥 Click here to download your APK</a>`, 'success');
+
+                const aabLink = result.aab_url
+                    ? `<a href="${result.aab_url}" class="download-link aab" download>📦 Download AAB <small>(Google Play)</small></a>`
+                    : '';
+
+                showStatus(`
+                    ✅ Build complete!
+                    <div class="download-links">
+                        <a href="${result.download_url}" class="download-link apk" download>📥 Download APK <small>(sideload / test)</small></a>
+                        ${aabLink}
+                    </div>
+                `, 'success');
+
                 document.getElementById('buildBtn').disabled = false;
-                document.getElementById('buildBtn').textContent = '🚀 Build APK';
+                document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
             } else if (result.status === 'failed') {
                 if (pollInterval) clearInterval(pollInterval);
                 showStatus(`❌ Build failed: ${result.error}`, 'error');
                 document.getElementById('buildBtn').disabled = false;
-                document.getElementById('buildBtn').textContent = '🚀 Build APK';
+                document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
             } else if (result.status === 'pending') {
                 showStatus(`⏳ Building... (${result.progress || 'in progress'})`, 'pending');
             } else if (result.status === 'not_found') {
