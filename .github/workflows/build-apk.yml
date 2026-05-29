@@ -48,7 +48,7 @@ jobs:
           mkdir -p app/src/main/res/mipmap-anydpi-v26/
           mkdir -p app/src/main/res/values/
 
-          # Create black theme to remove white splash/border
+          # Create black theme
           cat > app/src/main/res/values/styles.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -80,22 +80,22 @@ jobs:
             cp app/src/main/res/mipmap-hdpi/ic_launcher.png    app/src/main/res/mipmap-hdpi/ic_launcher_round.png
             cp app/src/main/res/mipmap-mdpi/ic_launcher.png    app/src/main/res/mipmap-mdpi/ic_launcher_round.png
 
-            # Create adaptive icons with black background (removes white padding)
+            # Create adaptive icons
             cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@android:color/black"/>
-    <foreground android:drawable="@mipmap/ic_launcher"/>
-</adaptive-icon>
-EOF
+            <?xml version="1.0" encoding="utf-8"?>
+            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+                <background android:drawable="@android:color/black"/>
+                <foreground android:drawable="@mipmap/ic_launcher"/>
+            </adaptive-icon>
+            EOF
 
             cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@android:color/black"/>
-    <foreground android:drawable="@mipmap/ic_launcher"/>
-</adaptive-icon>
-EOF
+            <?xml version="1.0" encoding="utf-8"?>
+            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+                <background android:drawable="@android:color/black"/>
+                <foreground android:drawable="@mipmap/ic_launcher"/>
+            </adaptive-icon>
+            EOF
 
             ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
           else
@@ -295,4 +295,4 @@ EOF
             -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
             -H "Content-Type: application/json" \
-            -d '{"status":"failed","progress":"Build error","error":"Gradle build failed"}'
+            -d '{"status":"failed","progress":"Build error"}'
