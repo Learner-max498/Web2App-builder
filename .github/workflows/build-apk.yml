@@ -45,7 +45,6 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xhdpi/
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
-          mkdir -p app/src/main/res/drawable/
 
           # Handle custom icon
           ICON_PATH="${{ github.event.inputs.icon_path }}"
@@ -55,39 +54,18 @@ jobs:
             curl -s "${{ secrets.SUPABASE_URL }}/storage/v1/object/public/app-icons/${ICON_PATH}" \
               -o /tmp/icon_orig.png
 
-            # Remove white background and resize for each density
-            # Use -flatten with transparent background to avoid white border
-            convert /tmp/icon_orig.png -background none -gravity center \
-              -resize 192x192 -extent 192x192 \
-              app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            # Force fill entire canvas with no padding using !
+            convert /tmp/icon_orig.png -resize 192x192! app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 144x144! app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 96x96!   app/src/main/res/mipmap-xhdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 72x72!   app/src/main/res/mipmap-hdpi/ic_launcher.png
+            convert /tmp/icon_orig.png -resize 48x48!   app/src/main/res/mipmap-mdpi/ic_launcher.png
 
-            convert /tmp/icon_orig.png -background none -gravity center \
-              -resize 144x144 -extent 144x144 \
-              app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-
-            convert /tmp/icon_orig.png -background none -gravity center \
-              -resize 96x96 -extent 96x96 \
-              app/src/main/res/mipmap-xhdpi/ic_launcher.png
-
-            convert /tmp/icon_orig.png -background none -gravity center \
-              -resize 72x72 -extent 72x72 \
-              app/src/main/res/mipmap-hdpi/ic_launcher.png
-
-            convert /tmp/icon_orig.png -background none -gravity center \
-              -resize 48x48 -extent 48x48 \
-              app/src/main/res/mipmap-mdpi/ic_launcher.png
-
-            # Also create a round version (same image, Android will clip it)
-            cp app/src/main/res/mipmap-xxxhdpi/ic_launcher.png \
-               app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-xxhdpi/ic_launcher.png \
-               app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-xhdpi/ic_launcher.png \
-               app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-hdpi/ic_launcher.png \
-               app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-mdpi/ic_launcher.png \
-               app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-xxxhdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-xxhdpi/ic_launcher.png  app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-xhdpi/ic_launcher.png   app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-hdpi/ic_launcher.png    app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+            cp app/src/main/res/mipmap-mdpi/ic_launcher.png    app/src/main/res/mipmap-mdpi/ic_launcher_round.png
 
             ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
           else
@@ -139,7 +117,8 @@ jobs:
                   requestWindowFeature(Window.FEATURE_NO_TITLE);
 
                   webView = new WebView(this);
-                  webView.setBackgroundColor(Color.WHITE);
+                  webView.setBackgroundColor(Color.BLACK);
+                  webView.setAlpha(0f);
 
                   WebSettings s = webView.getSettings();
                   s.setJavaScriptEnabled(true);
@@ -161,6 +140,10 @@ jobs:
                       public boolean shouldOverrideUrlLoading(WebView view, String url) {
                           view.loadUrl(url);
                           return true;
+                      }
+                      @Override
+                      public void onPageFinished(WebView view, String url) {
+                          view.animate().alpha(1f).setDuration(200).start();
                       }
                   });
                   webView.setWebChromeClient(new WebChromeClient());
