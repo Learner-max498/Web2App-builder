@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropKit — APK/AAB Builder</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #000;
+      color: white;
+      overflow-x: hidden;
+    }
+
+    /* Purple gradient background */
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(ellipse at 30% 40%, rgba(128,0,255,0.15) 0%, #000000 70%);
+    }
+    .bg::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 400px;
+      background: linear-gradient(180deg, rgba(128,0,255,0.08) 0%, transparent 100%);
+    }
+    .bg::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 300px;
+      background: linear-gradient(0deg, rgba(128,0,255,0.05) 0%, transparent 100%);
+    }
+
+    .page {
+      position: relative;
+      z-index: 10;
+      max-width: 550px;
+      margin: 0 auto;
+      padding: 20px 20px 40px;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      padding-top: 12px;
+    }
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #8c36ff;
+      text-decoration: none;
+    }
+    .nav-icons {
+      display: flex;
+      gap: 18px;
+    }
+    .nav-icon {
+      color: rgba(255,255,255,0.6);
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .nav-icon:hover, .nav-icon.active {
+      color: #8c36ff;
+    }
+    .badge {
+      position: absolute;
+      top: -6px;
+      right: -10px;
+      background: #8c36ff;
+      color: white;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 10px;
+      min-width: 16px;
+      text-align: center;
+    }
+
+    /* Cards */
+    .card {
+      background: rgba(20,20,20,0.7);
+      border: 1px solid rgba(128,0,255,0.25);
+      border-radius: 28px;
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .card-sub {
+      font-size: 13px;
+      color: rgba(255,255,255,0.45);
+      margin-bottom: 20px;
+    }
+
+    /* Inputs */
+    input, textarea {
+      width: 100%;
+      padding: 14px 16px;
+      background: rgba(0,0,0,0.5);
+      border: 1.5px solid rgba(128,0,255,0.25);
+      border-radius: 14px;
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px;
+      outline: none;
+      transition: all 0.2s;
+    }
+    input:focus, textarea:focus {
+      border-color: #8c36ff;
+      background: rgba(0,0,0,0.7);
+    }
+    input::placeholder, textarea::placeholder {
+      color: rgba(255,255,255,0.3);
+    }
+
+    .icon-preview {
+      width: 100%;
+      padding: 24px;
+      margin: 8px 0 16px;
+      border: 2px dashed rgba(128,0,255,0.3);
+      border-radius: 20px;
+      background: rgba(0,0,0,0.3);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .icon-preview:hover {
+      border-color: #8c36ff;
+      background: rgba(128,0,255,0.05);
+    }
+    .icon-preview img {
+      max-width: 80px;
+      max-height: 80px;
+      border-radius: 18px;
+    }
+    .icon-preview.empty {
+      color: rgba(255,255,255,0.4);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #8c36ff 0%, #6b10cc 100%);
+      color: white;
+      border: none;
+      border-radius: 14px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.12s, box-shadow 0.2s;
+      box-shadow: 0 4px 15px rgba(140,54,255,0.3);
+    }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+    .btn-secondary {
+      background: rgba(255,255,255,0.08);
+      box-shadow: none;
+    }
+    .btn-secondary:hover {
+      background: rgba(128,0,255,0.2);
+    }
+
+    /* Progress */
+    .progress-container {
+      background: rgba(255,255,255,0.1);
+      border-radius: 30px;
+      height: 6px;
+      overflow: hidden;
+      margin: 16px 0;
+    }
+    .progress-fill {
+      width: 0%;
+      height: 100%;
+      background: linear-gradient(90deg, #8c36ff, #c084fc);
+      border-radius: 30px;
+      transition: width 0.3s ease;
+    }
+    .status-message {
+      text-align: center;
+      font-size: 13px;
+      color: rgba(255,255,255,0.6);
+      margin: 12px 0;
+    }
+
+    /* Status colors */
+    .status-success { color: #00cc88; }
+    .status-error { color: #ff4444; }
+    .status-pending { color: #ffaa00; }
+
+    /* Builds list */
+    .build-item {
+      background: rgba(0,0,0,0.3);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .build-info h4 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .build-info p {
+      font-size: 11px;
+      color: rgba(255,255,255,0.5);
+    }
+    .build-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .build-actions a, .build-actions button {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 6px;
+    }
+    .build-actions a:hover, .build-actions button:hover {
+      color: #8c36ff;
+    }
+    .status-badge {
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: rgba(0,0,0,0.5);
+    }
+    .status-completed { background: rgba(0,200,100,0.2); color: #00cc88; }
+    .status-pending-badge { background: rgba(255,170,0,0.2); color: #ffaa00; }
+    .status-failed { background: rgba(255,68,68,0.2); color: #ff4444; }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: rgba(20,20,20,0.95);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.28s;
+      z-index: 9000;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
+      border: 1px solid #8c36ff;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: rgba(180,40,40,0.95); border-color: #ff4444; }
+    .toast.ok { background: rgba(0,120,80,0.95); border-color: #00cc88; }
+
+    .bsp {
+      display: inline-block;
+      width: 15px;
+      height: 15px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #8c36ff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .user-email {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      margin-right: 8px;
+    }
+    .nav-icon-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
+    }
+    .nav-icon-wrap .nav-icon { font-size: 20px; }
+    .nav-icon-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.4);
+    }
+    .nav-icon-wrap:hover .nav-icon, .nav-icon-wrap.active .nav-icon { color: #8c36ff; }
+    .nav-icon-wrap:hover .nav-icon-label, .nav-icon-wrap.active .nav-icon-label { color: #8c36ff; }
+    /* Custom Dialog */
+    .dk-dialog-overlay { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:24px; }
+    .dk-dialog-overlay.show { display:flex; }
+    .dk-dialog { background:rgba(20,20,20,0.98); border:1px solid rgba(128,0,255,0.4); border-radius:24px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.8); animation:dialogPop 0.2s ease; }
+    @keyframes dialogPop { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+    .dk-dialog-icon { font-size:32px; text-align:center; margin-bottom:12px; }
+    .dk-dialog-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:800; text-align:center; margin-bottom:8px; }
+    .dk-dialog-msg { font-size:13px; color:rgba(255,255,255,0.6); text-align:center; line-height:1.6; margin-bottom:20px; }
+    .dk-dialog-input { width:100%; padding:12px 14px; background:rgba(0,0,0,0.5); border:1.5px solid rgba(128,0,255,0.3); border-radius:12px; color:white; font-size:14px; outline:none; margin-bottom:16px; }
+    .dk-dialog-input:focus { border-color:#8c36ff; }
+    .dk-dialog-btns { display:flex; gap:10px; }
+    .dk-dialog-btns button { flex:1; padding:12px; border:none; border-radius:12px; font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.15s; }
+    .dk-btn-confirm { background:#8c36ff; color:white; }
+    .dk-btn-cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); }
+    .dk-btn-danger { background:rgba(255,68,68,0.15); color:#ff4444; border:1px solid rgba(255,68,68,0.3); }
+    .dk-btn-danger:hover { background:#ff4444 !important; color:white; }
+
+    .subdomain-preview {
+      font-size: 12px;
+      color: #8c36ff;
+      margin-top: 4px;
+      text-align: right;
+    }
+
+    input[type="file"] { display: none; }
+
+    @media (max-width: 480px) {
+      .page { padding: 16px; }
+      .card { padding: 18px; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+
+<div class="page">
+  <!-- Header -->
+  <div class="header">
+    <a href="builder.html" class="logo">DropKit</a>
+    <div class="nav-icons">
+      <div class="nav-icon-wrap active" onclick="location.href='builder.html'">
+        <i class="fas fa-mobile-alt nav-icon"></i><span class="nav-icon-label">Builder</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="location.href='sites.html'">
+        <i class="fas fa-globe nav-icon"></i><span class="nav-icon-label">Sites</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="location.href='builds.html'">
+        <i class="fas fa-history nav-icon"></i><span class="nav-icon-label">Builds</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="location.href='account.html'">
+        <i class="fas fa-user nav-icon"></i><span class="nav-icon-label">Account</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="logout()">
+        <i class="fas fa-sign-out-alt nav-icon"></i><span class="nav-icon-label">Logout</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Builder Card -->
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-mobile-alt" style="color:#8c36ff"></i>
+      Build APK & AAB
+    </div>
+    <div class="card-sub">Turn any website into an Android app with custom icon</div>
+
+    <input type="url" id="siteUrl" placeholder="Website URL (https://...)">
+    <input type="text" id="appName" placeholder="App Name">
+
+    <div class="icon-preview empty" onclick="document.getElementById('iconInput').click()" id="iconPreview">
+      📷 Tap to add app icon (512x512px recommended)
+    </div>
+    <input type="file" id="iconInput" accept="image/png,image/jpeg,image/webp">
+
+    <button class="btn" id="buildBtn" onclick="startBuild()">🚀 Build APK + AAB</button>
+
+    <div id="buildProgress" style="display:none;">
+      <div class="progress-container">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+      <div class="status-message" id="statusMsg">⏳ Starting build...</div>
+    </div>
+  </div>
+
+  <!-- Recent Builds Card -->
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-clock" style="color:#8c36ff"></i>
+      Recent Builds
+    </div>
+    <div id="recentBuildsList">
+      <div style="text-align:center; padding:20px; color:rgba(255,255,255,0.4)">
+        <i class="fas fa-spinner fa-pulse"></i> Loading...
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+
+  const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  let currentUser = null;
+  let pollInterval = null;
+  let selectedIconBase64 = null;
+  let currentBuildJobId = null;
+
+  // Check auth
+  async function checkAuth() {
+    const { data: { session }, error } = await _supabase.auth.getSession();
+    if (error || !session) {
+      window.location.href = 'index.html';
+      return;
+    }
+    currentUser = session.user;
+    await loadRecentBuilds();
+  }
+
+  // Icon upload
+  document.getElementById('iconInput').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file && file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        selectedIconBase64 = event.target.result;
+        const preview = document.getElementById('iconPreview');
+        preview.innerHTML = `<img src="${selectedIconBase64}" alt="Icon"><br><small>Tap to change</small>`;
+        preview.classList.remove('empty');
+      };
+      reader.readAsDataURL(file);
+    }
+  });
+
+  function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type ? ' ' + type : '');
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  async function startBuild() {
+    const url = document.getElementById('siteUrl').value.trim();
+    const appName = document.getElementById('appName').value.trim();
+
+    if (!url || !appName) {
+      toast('Please fill in all fields', 'err');
+      return;
+    }
+    if (!url.startsWith('http')) {
+      toast('URL must start with http:// or https://', 'err');
+      return;
+    }
+
+    const buildBtn = document.getElementById('buildBtn');
+    buildBtn.disabled = true;
+    buildBtn.textContent = '⏳ Starting...';
+
+    document.getElementById('buildProgress').style.display = 'block';
+    document.getElementById('progressFill').style.width = '10%';
+    document.getElementById('statusMsg').innerHTML = '⏳ Submitting build request...';
+
+    try {
+      const payload = { url, app_name: appName };
+      if (selectedIconBase64) {
+        payload.icon_base64 = selectedIconBase64;
+      }
+
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/build-apk`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || 'Build request failed');
+      }
+
+      currentBuildJobId = result.job_id;
+      
+      // Save build to database
+      await _supabase.from('builds').insert({
+        id: currentBuildJobId,
+        user_id: currentUser.id,
+        url: url,
+        app_name: appName,
+        status: 'pending'
+      });
+
+      document.getElementById('progressFill').style.width = '30%';
+      document.getElementById('statusMsg').innerHTML = '⏳ Building... (2-3 minutes)';
+
+      // Start polling
+      if (pollInterval) clearInterval(pollInterval);
+      pollInterval = setInterval(() => pollBuildStatus(currentBuildJobId), 5000);
+
+    } catch (err) {
+      toast('Error: ' + err.message, 'err');
+      buildBtn.disabled = false;
+      buildBtn.textContent = '🚀 Build APK + AAB';
+      document.getElementById('buildProgress').style.display = 'none';
+    }
+  }
+
+  async function pollBuildStatus(jobId) {
+    try {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/build-status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ job_id: jobId })
+      });
+
+      const result = await response.json();
+
+      if (result.status === 'completed') {
+        if (pollInterval) clearInterval(pollInterval);
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('statusMsg').innerHTML = `✅ Build complete! <a href="${result.download_url}" style="color:#8c36ff">📥 Download APK</a>`;
+        
+        // Update database
+        await _supabase.from('builds').update({
+          status: 'completed',
+          download_url: result.download_url
+        }).eq('id', jobId);
+
+        document.getElementById('buildBtn').disabled = false;
+        document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
+        
+        toast('Build completed successfully!', 'ok');
+        await loadRecentBuilds();
+        
+        setTimeout(() => {
+          document.getElementById('buildProgress').style.display = 'none';
+        }, 3000);
+        
+      } else if (result.status === 'failed') {
+        if (pollInterval) clearInterval(pollInterval);
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('statusMsg').innerHTML = `❌ Build failed: ${result.error}`;
+        document.getElementById('statusMsg').style.color = '#ff4444';
+        
+        await _supabase.from('builds').update({
+          status: 'failed'
+        }).eq('id', jobId);
+        
+        document.getElementById('buildBtn').disabled = false;
+        document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
+        
+        setTimeout(() => {
+          document.getElementById('buildProgress').style.display = 'none';
+        }, 5000);
+        
+      } else if (result.status === 'pending') {
+        document.getElementById('progressFill').style.width = '60%';
+        document.getElementById('statusMsg').innerHTML = `⏳ Building... ${result.progress || 'in progress'}`;
+      }
+    } catch (err) {
+      console.error('Poll error:', err);
+    }
+  }
+
+  async function loadRecentBuilds() {
+    const { data: builds, error } = await _supabase
+      .from('builds')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    const container = document.getElementById('recentBuildsList');
+    
+    if (error || !builds || builds.length === 0) {
+      container.innerHTML = '<div style="text-align:center; padding:20px; color:rgba(255,255,255,0.4)">No builds yet. Create your first app above!</div>';
+      return;
+    }
+
+    container.innerHTML = builds.map(build => `
+      <div class="build-item">
+        <div class="build-info">
+          <h4>${escapeHtml(build.app_name)}</h4>
+          <p>${new Date(build.created_at).toLocaleString()}</p>
+          <span class="status-badge status-${build.status}">${build.status.toUpperCase()}</span>
+        </div>
+        <div class="build-actions">
+          ${build.download_url ? `<a href="${build.download_url}" download><i class="fas fa-download"></i></a>` : ''}
+          <button onclick="deleteBuild('${build.id}')"><i class="fas fa-trash-alt"></i></button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function deleteBuild(buildId) {
+    const ok = await dkConfirm('Delete this build permanently?', '🗑️', 'Delete Build', true);
+    if (!ok) return;
+    const { error } = await _supabase.from('builds').delete().eq('id', buildId);
+    if (error) {
+      toast('Failed to delete', 'err');
+    } else {
+      toast('Build deleted', 'ok');
+      await loadRecentBuilds();
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  async function logout() {
+    await _supabase.auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  // ── Custom Dialog ──────────────────────────────────────────────
+  function dkAlert(msg, icon='ℹ️', title='Notice') {
+    return new Promise(res => {
+      document.getElementById('dkDialogIcon').textContent = icon;
+      document.getElementById('dkDialogTitle').textContent = title;
+      document.getElementById('dkDialogMsg').textContent = msg;
+      document.getElementById('dkDialogInput').style.display='none';
+      document.getElementById('dkDialogBtns').innerHTML = `<button class="dk-btn-confirm" onclick="dkResolve(true)">OK</button>`;
+      document.getElementById('dkDialogOverlay').classList.add('show');
+      window._dkResolve = res;
+    });
+  }
+  function dkConfirm(msg, icon='⚠️', title='Confirm', dangerBtn=false) {
+    return new Promise(res => {
+      document.getElementById('dkDialogIcon').textContent = icon;
+      document.getElementById('dkDialogTitle').textContent = title;
+      document.getElementById('dkDialogMsg').textContent = msg;
+      document.getElementById('dkDialogInput').style.display='none';
+      document.getElementById('dkDialogBtns').innerHTML = `<button class="${dangerBtn?'dk-btn-danger':'dk-btn-confirm'}" onclick="dkResolve(true)">Confirm</button><button class="dk-btn-cancel" onclick="dkResolve(false)">Cancel</button>`;
+      document.getElementById('dkDialogOverlay').classList.add('show');
+      window._dkResolve = res;
+    });
+  }
+  function dkResolve(val) {
+    document.getElementById('dkDialogOverlay').classList.remove('show');
+    if(window._dkResolve) { window._dkResolve(val); window._dkResolve=null; }
+  }
+  window.dkResolve = dkResolve;
+
+  // Initialize
+  checkAuth();
+
+  // Export for global access
+  window.deleteBuild = deleteBuild;
+  window.startBuild = startBuild;
+  window.logout = logout;
+</script>
+<div class="dk-dialog-overlay" id="dkDialogOverlay">
+  <div class="dk-dialog">
+    <div class="dk-dialog-icon" id="dkDialogIcon">⚠️</div>
+    <div class="dk-dialog-title" id="dkDialogTitle">Confirm</div>
+    <div class="dk-dialog-msg" id="dkDialogMsg"></div>
+    <input class="dk-dialog-input" id="dkDialogInput" type="text" style="display:none">
+    <div class="dk-dialog-btns" id="dkDialogBtns"></div>
+  </div>
+</div>
+</body>
+</html>

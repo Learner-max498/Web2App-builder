@@ -1,251 +1,472 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Web2App Builder</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body {
-            font-family: system-ui, -apple-system, sans-serif;
-            max-width: 500px;
-            margin: 0 auto;
-            padding: 20px;
-            background: #f5f5f5;
-        }
-        .container {
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-        }
-        h2 {
-            color: #333;
-            margin-top: 0;
-        }
-        input {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            box-sizing: border-box;
-        }
-        .icon-preview {
-            width: 100%;
-            padding: 12px;
-            margin: 8px 0 16px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background: #f9f9f9;
-            text-align: center;
-            cursor: pointer;
-            box-sizing: border-box;
-        }
-        .icon-preview img {
-            max-width: 80px;
-            max-height: 80px;
-            border-radius: 16px;
-        }
-        .icon-preview.empty {
-            color: #999;
-            padding: 30px;
-        }
-        button {
-            width: 100%;
-            padding: 12px;
-            background: #3b82f6;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: bold;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #2563eb;
-        }
-        button:disabled {
-            background: #9ca3af;
-            cursor: not-allowed;
-        }
-        .status {
-            margin-top: 16px;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 14px;
-        }
-        .status.pending {
-            background: #fef3c7;
-            color: #92400e;
-        }
-        .status.success {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .status.error {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .download-link {
-            display: block;
-            margin-top: 10px;
-            color: #3b82f6;
-            text-decoration: none;
-            font-weight: bold;
-        }
-        .note {
-            font-size: 12px;
-            color: #666;
-            text-align: center;
-            margin-top: 20px;
-        }
-        input[type="file"] {
-            display: none;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropKit — Build & Deploy Anything</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <!-- ✅ Supabase CDN - MUST BE FIRST -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #000;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    .bg { position: fixed; inset: 0; z-index: 0; background: #000; overflow: hidden; }
+    .leak {
+      position: absolute; width: 100%; height: 350px; top: 0; left: 0;
+      background: linear-gradient(180deg, rgba(128,0,255,0.12) 0%, transparent 100%);
+    }
+    .bottom-glow {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 200px;
+      background: linear-gradient(0deg, rgba(128,0,255,0.08) 0%, transparent 100%);
+      z-index: 1; pointer-events: none;
+    }
+
+    .page {
+      position: relative; z-index: 10;
+      width: 100%; max-width: 430px;
+      min-height: 100vh;
+      display: flex; flex-direction: column;
+      padding: 0 0 40px;
+    }
+
+    .hero {
+      padding: 56px 28px 32px;
+      text-align: center;
+    }
+
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 58px; font-weight: 700;
+      letter-spacing: -3px; line-height: 1;
+      color: #8c36ff;
+      text-shadow: 0 4px 30px rgba(140,54,255,0.4);
+    }
+
+    .tagline {
+      margin-top: 8px;
+      font-size: 13px; font-weight: 600;
+      letter-spacing: 3px; text-transform: uppercase;
+      color: rgba(255,255,255,0.45);
+    }
+
+    .features-row {
+      display: flex; gap: 10px;
+      margin: 24px 18px 0;
+    }
+
+    .feat {
+      flex: 1;
+      background: rgba(20,20,20,0.7);
+      border: 1px solid rgba(128,0,255,0.2);
+      border-radius: 16px;
+      padding: 14px 10px;
+      text-align: center;
+    }
+
+    .feat-icon { font-size: 22px; margin-bottom: 6px; }
+    .feat-label {
+      font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,0.6);
+      letter-spacing: 0.3px;
+    }
+
+    .card {
+      margin: 20px 18px 0;
+      background: rgba(20,20,20,0.8);
+      border: 1px solid rgba(128,0,255,0.25);
+      border-radius: 28px;
+      padding: 28px 22px 24px;
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      box-shadow: 0 8px 32px rgba(0,0,0,0.6), inset 0 1px 0 rgba(255,255,255,0.05);
+    }
+
+    .tabs {
+      display: flex;
+      background: rgba(0,0,0,0.4);
+      border-radius: 14px;
+      padding: 4px;
+      margin-bottom: 24px;
+      gap: 4px;
+    }
+
+    .tab {
+      flex: 1; text-align: center;
+      padding: 11px;
+      border-radius: 10px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 14px; font-weight: 700;
+      color: rgba(255,255,255,0.5);
+      cursor: pointer;
+      transition: all 0.2s;
+      user-select: none;
+      border: none; background: none;
+    }
+
+    .tab.active {
+      background: #8c36ff;
+      color: white;
+      box-shadow: 0 2px 12px rgba(140,54,255,0.5);
+    }
+
+    .form { display: none; }
+    .form.active {
+      display: block;
+      animation: fadeUp 0.25s ease both;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .form-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 20px; font-weight: 800;
+      color: white; margin-bottom: 4px;
+    }
+
+    .form-sub {
+      font-size: 13px; color: rgba(255,255,255,0.5);
+      margin-bottom: 20px; line-height: 1.5;
+    }
+
+    .field { margin-bottom: 13px; }
+
+    .field label {
+      display: block;
+      font-size: 11px; font-weight: 700;
+      color: rgba(255,255,255,0.55);
+      text-transform: uppercase; letter-spacing: 0.8px;
+      margin-bottom: 6px;
+    }
+
+    .field input {
+      width: 100%;
+      padding: 13px 15px;
+      background: rgba(0,0,0,0.4);
+      border: 1.5px solid rgba(128,0,255,0.25);
+      border-radius: 13px;
+      color: white;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 14px; outline: none;
+      transition: border-color 0.2s, background 0.2s;
+      -webkit-appearance: none;
+    }
+
+    .field input::placeholder { color: rgba(255,255,255,0.3); }
+    .field input:focus {
+      border-color: #8c36ff;
+      background: rgba(0,0,0,0.6);
+    }
+
+    .btn {
+      width: 100%; padding: 15px;
+      background: #8c36ff; color: white;
+      border: none; border-radius: 13px;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 15px; font-weight: 800;
+      cursor: pointer; margin-top: 6px;
+      box-shadow: 0 6px 20px rgba(140,54,255,0.4);
+      transition: transform 0.12s, box-shadow 0.12s;
+    }
+
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+    .switch-link {
+      text-align: center; margin-top: 16px;
+      font-size: 13px; color: rgba(255,255,255,0.45);
+    }
+    .switch-link a {
+      color: #c7b2ff; font-weight: 700;
+      cursor: pointer; text-decoration: none;
+    }
+    .switch-link a:hover { color: #8c36ff; }
+
+    .built-by {
+      font-size: 11px; font-weight: 600;
+      letter-spacing: 2px; text-transform: uppercase;
+      color: rgba(255,255,255,0.25);
+      margin-bottom: 8px;
+    }
+
+    .wp-footer {
+      margin-top: 30px;
+      text-align: center;
+    }
+
+    .pw-logo {
+      display: inline-flex;
+      align-items: center; justify-content: center;
+      gap: 2px;
+      animation: footerFloat 3s ease-in-out infinite;
+    }
+
+    .w-small {
+      display: inline-block;
+      font-size: 1.8rem; font-weight: 900;
+      letter-spacing: -2px;
+      transform: scaleX(1.2);
+      color: #8c36ff;
+      text-shadow: 0 0 8px rgba(140,54,255,0.5);
+      line-height: 1;
+    }
+
+    .p-small {
+      display: inline-block;
+      font-size: 1.8rem; font-weight: 900;
+      margin-left: -3px; position: relative;
+      color: #8c36ff;
+      text-shadow: 0 0 8px rgba(140,54,255,0.5);
+      line-height: 1;
+    }
+
+    .p-small::before {
+      content: "";
+      position: absolute; top: -6px; left: 2px;
+      width: 7px; height: 7px;
+      background: #8c36ff; border-radius: 50%;
+      box-shadow: 0 0 10px #8c36ff;
+    }
+
+    @keyframes footerFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-2px); }
+    }
+
+    .toast {
+      position: fixed; bottom: 28px;
+      left: 50%; transform: translateX(-50%) translateY(16px);
+      background: rgba(20,20,20,0.95);
+      color: white; padding: 11px 22px;
+      border-radius: 30px; font-size: 13px; font-weight: 600;
+      opacity: 0; transition: all 0.28s;
+      z-index: 9000; pointer-events: none;
+      max-width: 88%; text-align: center;
+      backdrop-filter: blur(10px);
+      border: 1px solid #8c36ff;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: rgba(180,40,40,0.95); border-color: #ff4444; }
+    .toast.ok { background: rgba(0,120,80,0.95); border-color: #00cc88; }
+
+    .bsp {
+      display: inline-block; width: 15px; height: 15px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: #8c36ff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle; margin-right: 6px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <h2>📱 Web2App Builder</h2>
-        <p>Turn any website into an Android APK with custom icon</p>
-        
-        <input type="url" id="url" placeholder="Website URL (https://...)" required>
-        <input type="text" id="appName" placeholder="App Name" required>
-        
-        <div class="icon-preview empty" onclick="document.getElementById('iconInput').click()" id="iconPreview">
-            📷 Tap to add app icon (optional)
-        </div>
-        <input type="file" id="iconInput" accept="image/png,image/jpeg,image/webp">
-        
-        <button onclick="build()" id="buildBtn">🚀 Build APK</button>
-        <div id="status"></div>
-        <div class="note">
-            ⚡ Builds take 2-3 minutes. Icon should be 512x512px for best results.
-        </div>
+
+<div class="bg"><div class="leak"></div></div>
+<div class="bottom-glow"></div>
+
+<div class="page">
+  <div class="hero">
+    <div class="logo">DropKit</div>
+    <div class="tagline">Build &amp; Deploy Anything</div>
+  </div>
+
+  <div class="features-row">
+    <div class="feat">
+      <div class="feat-icon">📱</div>
+      <div class="feat-label">APK Builder</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">🌐</div>
+      <div class="feat-label">Site Hosting</div>
+    </div>
+    <div class="feat">
+      <div class="feat-icon">📋</div>
+      <div class="feat-label">Build History</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" id="tabLoginBtn" onclick="switchTab('login')">Sign In</button>
+      <button class="tab" id="tabSignupBtn" onclick="switchTab('signup')">Create Account</button>
     </div>
 
-    <script>
-    const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
-    const SUPABASE_ANON_KEY = "sb_publishable_c6Rv2f_Rfgk6PDHVYBAcvQ_VxC2rENW";
+    <div class="form active" id="login-form">
+      <div class="form-title">Welcome back 👋</div>
+      <div class="form-sub">Sign in to your DropKit account</div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn" id="login-btn" onclick="handleLogin()">Sign In</button>
+      <p class="switch-link">Don't have an account? <a onclick="switchTab('signup')">Create one</a></p>
+    </div>
+
+    <div class="form" id="signup-form">
+      <div class="form-title">Join DropKit 🚀</div>
+      <div class="form-sub">Create your free account</div>
+      <div class="field">
+        <label>Full Name</label>
+        <input type="text" id="signup-name" placeholder="Your name" autocomplete="name">
+      </div>
+      <div class="field">
+        <label>Email</label>
+        <input type="email" id="signup-email" placeholder="you@example.com" autocomplete="email">
+      </div>
+      <div class="field">
+        <label>Password</label>
+        <input type="password" id="signup-password" placeholder="Min. 6 characters" autocomplete="new-password">
+      </div>
+      <button class="btn" id="signup-btn" onclick="handleSignup()">Create Account</button>
+      <p class="switch-link">Already have an account? <a onclick="switchTab('login')">Sign in</a></p>
+    </div>
+  </div>
+
+  <div class="wp-footer">
+    <p class="built-by">Crafted with 💜 by</p>
+    <div class="pw-logo">
+      <span class="w-small">W</span><span class="p-small">P</span>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  // ✅ Supabase configuration
+  const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+  
+  // ✅ Create supabase client (only once)
+  const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  // ✅ Check if already logged in
+  _supabase.auth.getSession().then(({ data }) => {
+    if (data.session) {
+      window.location.href = 'builder.html';
+    }
+  });
+
+  // ✅ Tab switching function
+  window.switchTab = function(tab) {
+    const isLogin = tab === 'login';
+    const loginForm = document.getElementById('login-form');
+    const signupForm = document.getElementById('signup-form');
+    const tabLogin = document.getElementById('tabLoginBtn');
+    const tabSignup = document.getElementById('tabSignupBtn');
     
-    let pollInterval = null;
-    let selectedIconBase64 = null;
+    if (loginForm) {
+      loginForm.className = 'form' + (isLogin ? ' active' : '');
+    }
+    if (signupForm) {
+      signupForm.className = 'form' + (!isLogin ? ' active' : '');
+    }
+    if (tabLogin) {
+      tabLogin.classList.toggle('active', isLogin);
+    }
+    if (tabSignup) {
+      tabSignup.classList.toggle('active', !isLogin);
+    }
+  };
+
+  // ✅ Toast function
+  let toastTimer;
+  function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  // ✅ Loading state
+  function setLoading(btnId, isLoading, originalText) {
+    const btn = document.getElementById(btnId);
+    if (!btn) return;
+    btn.disabled = isLoading;
+    btn.innerHTML = isLoading ? '<span class="bsp"></span>Please wait...' : originalText;
+  }
+
+  // ✅ Handle Login
+  window.handleLogin = async function() {
+    const email = document.getElementById('login-email').value.trim();
+    const password = document.getElementById('login-password').value;
     
-    document.getElementById('iconInput').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file && file.type.startsWith('image/')) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                selectedIconBase64 = event.target.result;
-                const preview = document.getElementById('iconPreview');
-                preview.innerHTML = `<img src="${selectedIconBase64}" alt="App Icon"><br><small>Tap to change</small>`;
-                preview.classList.remove('empty');
-            };
-            reader.readAsDataURL(file);
-        }
+    if (!email || !password) {
+      toast('Please fill in all fields.', 'err');
+      return;
+    }
+    
+    setLoading('login-btn', true, 'Sign In');
+    const { error } = await _supabase.auth.signInWithPassword({ email, password });
+    setLoading('login-btn', false, 'Sign In');
+    
+    if (error) {
+      toast(error.message, 'err');
+      return;
+    }
+    window.location.href = 'builder.html';
+  };
+
+  // ✅ Handle Signup
+  window.handleSignup = async function() {
+    const name = document.getElementById('signup-name').value.trim();
+    const email = document.getElementById('signup-email').value.trim();
+    const password = document.getElementById('signup-password').value;
+    
+    if (!name || !email || !password) {
+      toast('Please fill in all fields.', 'err');
+      return;
+    }
+    if (password.length < 6) {
+      toast('Password must be at least 6 characters.', 'err');
+      return;
+    }
+    
+    setLoading('signup-btn', true, 'Create Account');
+    const { error } = await _supabase.auth.signUp({
+      email, password,
+      options: { data: { full_name: name } }
     });
+    setLoading('signup-btn', false, 'Create Account');
     
-    async function build() {
-        const url = document.getElementById('url').value;
-        const appName = document.getElementById('appName').value;
-        const buildBtn = document.getElementById('buildBtn');
-        
-        if (!url || !appName) {
-            showStatus('Please fill in both fields', 'error');
-            return;
-        }
-        
-        if (!url.startsWith('http')) {
-            showStatus('Please enter a valid URL starting with http:// or https://', 'error');
-            return;
-        }
-        
-        buildBtn.disabled = true;
-        buildBtn.textContent = '⏳ Starting build...';
-        showStatus('⏳ Starting build...', 'pending');
-        
-        try {
-            const payload = { 
-                url: url, 
-                app_name: appName 
-            };
-            
-            if (selectedIconBase64) {
-                payload.icon_base64 = selectedIconBase64;
-            }
-            
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/smooth-responder`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-            
-            const result = await response.json();
-            
-            if (!response.ok) {
-                throw new Error(result.error || 'Build request failed');
-            }
-            
-            showStatus(`⏳ Build started! Job ID: ${result.job_id}<br>Please wait 2-3 minutes...`, 'pending');
-            
-            if (pollInterval) clearInterval(pollInterval);
-            pollInterval = setInterval(() => checkStatus(result.job_id), 5000);
-            
-        } catch (err) {
-            showStatus('Error: ' + err.message, 'error');
-            buildBtn.disabled = false;
-            buildBtn.textContent = '🚀 Build APK';
-        }
+    if (error) {
+      toast(error.message, 'err');
+      return;
     }
-    
-    async function checkStatus(jobId) {
-        try {
-            const response = await fetch(`${SUPABASE_URL}/functions/v1/build-status`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                    'apikey': SUPABASE_ANON_KEY,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ job_id: jobId })
-            });
-            
-            const result = await response.json();
-            
-            if (result.status === 'completed') {
-                if (pollInterval) clearInterval(pollInterval);
-                showStatus(
-                    `✅ Build complete!` +
-                    `<br><a href="${result.download_url}" class="download-link">📥 Download APK</a>` +
-                    `<br><a href="${result.aab_url}" class="download-link">📦 Download AAB (Google Play)</a>`,
-                    'success'
-                );
-                document.getElementById('buildBtn').disabled = false;
-                document.getElementById('buildBtn').textContent = '🚀 Build APK';
-            } else if (result.status === 'failed') {
-                if (pollInterval) clearInterval(pollInterval);
-                showStatus(`❌ Build failed: ${result.error}`, 'error');
-                document.getElementById('buildBtn').disabled = false;
-                document.getElementById('buildBtn').textContent = '🚀 Build APK';
-            } else if (result.status === 'pending') {
-                showStatus(`⏳ Building... (${result.progress || 'in progress'})`, 'pending');
-            } else if (result.status === 'not_found') {
-                showStatus(`⏳ Waiting for build to start...`, 'pending');
-            }
-        } catch (err) {
-            console.error('Status check failed:', err);
-        }
+    toast('Account created! You can now sign in.', 'ok');
+    setTimeout(() => window.switchTab('login'), 2000);
+  };
+
+  // ✅ Enter key support
+  document.addEventListener('keydown', (e) => {
+    if (e.key !== 'Enter') return;
+    const loginForm = document.getElementById('login-form');
+    if (loginForm && loginForm.classList.contains('active')) {
+      window.handleLogin();
+    } else {
+      window.handleSignup();
     }
-    
-    function showStatus(message, type) {
-        const statusDiv = document.getElementById('status');
-        statusDiv.innerHTML = message;
-        statusDiv.className = `status ${type}`;
-    }
-    </script>
+  });
+</script>
 </body>
 </html>

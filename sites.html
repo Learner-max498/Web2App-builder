@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropKit — Sites</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    body { font-family: 'DM Sans', sans-serif; min-height: 100vh; background: #000; color: white; overflow-x: hidden; }
+    .bg { position: fixed; inset: 0; z-index: 0; background: radial-gradient(ellipse at 30% 40%, rgba(128,0,255,0.15) 0%, #000 70%); }
+    .page { position: relative; z-index: 10; max-width: 550px; margin: 0 auto; padding: 20px 20px 60px; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-top: 12px; }
+    .logo { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: #8c36ff; text-decoration: none; }
+    .nav-icons { display: flex; gap: 16px; align-items: center; }
+    .nav-icon-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
+    .nav-icon-wrap .nav-icon { font-size: 20px; color: rgba(255,255,255,0.6); transition: all 0.2s; }
+    .nav-icon-label { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: rgba(255,255,255,0.4); transition: all 0.2s; }
+    .nav-icon-wrap:hover .nav-icon, .nav-icon-wrap.active .nav-icon { color: #8c36ff; }
+    .nav-icon-wrap:hover .nav-icon-label, .nav-icon-wrap.active .nav-icon-label { color: #8c36ff; }
+    .card { background: rgba(20,20,20,0.7); border: 1px solid rgba(128,0,255,0.25); border-radius: 28px; padding: 24px; backdrop-filter: blur(20px); margin-bottom: 20px; }
+    .card-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 18px; font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+    .card-sub { font-size: 13px; color: rgba(255,255,255,0.45); margin-bottom: 20px; line-height: 1.5; }
+
+    /* Upload Drop Zone */
+    .drop-zone {
+      border: 2px dashed rgba(128,0,255,0.35);
+      border-radius: 20px;
+      padding: 36px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      background: rgba(0,0,0,0.2);
+      position: relative;
+    }
+    .drop-zone.drag-over {
+      border-color: #8c36ff;
+      background: rgba(128,0,255,0.08);
+      transform: scale(1.01);
+    }
+    .drop-zone input[type="file"] { display: none; }
+    .drop-icon { font-size: 40px; margin-bottom: 12px; }
+    .drop-title { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .drop-sub { font-size: 12px; color: rgba(255,255,255,0.45); line-height: 1.5; }
+    .drop-browse { color: #c7b2ff; font-weight: 700; cursor: pointer; }
+    .drop-browse:hover { color: #8c36ff; }
+
+    /* File list preview */
+    .file-preview {
+      margin-top: 16px;
+      background: rgba(0,0,0,0.3);
+      border-radius: 14px;
+      padding: 12px 14px;
+      display: none;
+    }
+    .file-preview.show { display: block; }
+    .file-preview-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .file-preview-title { font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.6); }
+    .file-preview-clear { font-size: 11px; color: #ff6666; cursor: pointer; }
+    .file-list { max-height: 120px; overflow-y: auto; }
+    .file-list-item { font-size: 11px; color: rgba(255,255,255,0.5); padding: 3px 0; display: flex; align-items: center; gap: 6px; }
+    .file-list-item i { color: #8c36ff; width: 12px; }
+
+    /* Site name input */
+    .site-name-wrap { margin: 16px 0; }
+    .site-name-label { font-size: 11px; font-weight: 700; color: rgba(255,255,255,0.55); text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; display: block; }
+    .site-name-input { width: 100%; padding: 13px 15px; background: rgba(0,0,0,0.4); border: 1.5px solid rgba(128,0,255,0.25); border-radius: 13px; color: white; font-family: 'DM Sans', sans-serif; font-size: 14px; outline: none; transition: all 0.2s; }
+    .site-name-input:focus { border-color: #8c36ff; background: rgba(0,0,0,0.6); }
+    .site-name-input::placeholder { color: rgba(255,255,255,0.3); }
+    .subdomain-preview { font-size: 11px; color: #8c36ff; margin-top: 5px; font-family: monospace; }
+
+    /* Upload progress */
+    .upload-progress { display: none; margin-top: 16px; }
+    .upload-progress.show { display: block; }
+    .progress-bar-wrap { background: rgba(255,255,255,0.1); border-radius: 30px; height: 6px; overflow: hidden; margin-bottom: 8px; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(90deg, #8c36ff, #c084fc); border-radius: 30px; transition: width 0.3s ease; width: 0%; }
+    .progress-label { font-size: 12px; color: rgba(255,255,255,0.6); text-align: center; }
+
+    .btn { width: 100%; padding: 15px; background: linear-gradient(135deg, #8c36ff 0%, #6b10cc 100%); color: white; border: none; border-radius: 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: all 0.12s; box-shadow: 0 4px 15px rgba(140,54,255,0.3); margin-top: 8px; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+    /* Sites list */
+    .site-item { background: rgba(0,0,0,0.3); border-radius: 20px; padding: 16px; margin-bottom: 12px; border: 1px solid rgba(128,0,255,0.1); transition: all 0.2s; }
+    .site-item:hover { border-color: rgba(128,0,255,0.3); background: rgba(128,0,255,0.06); }
+    .site-item-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+    .site-item-name { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 15px; font-weight: 700; }
+    .site-url { font-family: monospace; font-size: 12px; color: #c7b2ff; background: rgba(128,0,255,0.1); padding: 4px 10px; border-radius: 8px; word-break: break-all; margin-bottom: 10px; }
+    .site-url a { color: #c7b2ff; text-decoration: none; }
+    .site-url a:hover { color: #8c36ff; text-decoration: underline; }
+    .site-meta { font-size: 11px; color: rgba(255,255,255,0.4); margin-bottom: 10px; }
+    .site-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .site-btn { padding: 7px 14px; border-radius: 10px; font-size: 12px; font-weight: 700; border: none; cursor: pointer; transition: all 0.15s; display: flex; align-items: center; gap: 6px; }
+    .site-btn-visit { background: rgba(128,0,255,0.15); color: #c7b2ff; }
+    .site-btn-visit:hover { background: rgba(128,0,255,0.3); }
+    .site-btn-delete { background: rgba(255,68,68,0.1); color: #ff6666; }
+    .site-btn-delete:hover { background: rgba(255,68,68,0.2); }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .dot-live { background: #00cc88; box-shadow: 0 0 6px #00cc88; }
+    .dot-deploying { background: #ffaa00; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .empty-state { text-align: center; padding: 40px 20px; color: rgba(255,255,255,0.35); }
+    .empty-state i { font-size: 36px; margin-bottom: 12px; display: block; opacity: 0.3; }
+
+    /* Toast */
+    .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(16px); background: rgba(20,20,20,0.95); color: white; padding: 12px 24px; border-radius: 30px; font-size: 13px; font-weight: 600; opacity: 0; transition: all 0.28s; z-index: 9000; pointer-events: none; backdrop-filter: blur(10px); border: 1px solid #8c36ff; max-width: 88%; text-align: center; }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: rgba(180,40,40,0.95); border-color: #ff4444; }
+    .toast.ok { background: rgba(0,120,80,0.95); border-color: #00cc88; }
+    .bsp { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #8c36ff; border-radius: 50%; animation: spin 0.6s linear infinite; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Custom Dialog */
+    .dk-dialog-overlay { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:24px; }
+    .dk-dialog-overlay.show { display:flex; }
+    .dk-dialog { background:rgba(20,20,20,0.98); border:1px solid rgba(128,0,255,0.4); border-radius:24px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.8); animation:dialogPop 0.2s ease; }
+    @keyframes dialogPop { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+    .dk-dialog-icon { font-size:32px; text-align:center; margin-bottom:12px; }
+    .dk-dialog-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:800; text-align:center; margin-bottom:8px; }
+    .dk-dialog-msg { font-size:13px; color:rgba(255,255,255,0.6); text-align:center; line-height:1.6; margin-bottom:20px; }
+    .dk-dialog-input { width:100%; padding:12px 14px; background:rgba(0,0,0,0.5); border:1.5px solid rgba(128,0,255,0.3); border-radius:12px; color:white; font-size:14px; outline:none; margin-bottom:16px; }
+    .dk-dialog-btns { display:flex; gap:10px; }
+    .dk-dialog-btns button { flex:1; padding:12px; border:none; border-radius:12px; font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.15s; }
+    .dk-btn-confirm { background:#8c36ff; color:white; }
+    .dk-btn-cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); }
+    .dk-btn-danger { background:rgba(255,68,68,0.15); color:#ff4444; border:1px solid rgba(255,68,68,0.3); }
+    .dk-btn-danger:hover { background:#ff4444 !important; color:white; }
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="page">
+  <div class="header">
+    <a href="builder.html" class="logo">DropKit</a>
+    <div class="nav-icons">
+      <div class="nav-icon-wrap" onclick="location.href='builder.html'">
+        <i class="fas fa-mobile-alt nav-icon"></i><span class="nav-icon-label">Builder</span>
+      </div>
+      <div class="nav-icon-wrap active" onclick="location.href='sites.html'">
+        <i class="fas fa-globe nav-icon"></i><span class="nav-icon-label">Sites</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="location.href='builds.html'">
+        <i class="fas fa-history nav-icon"></i><span class="nav-icon-label">Builds</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="location.href='account.html'">
+        <i class="fas fa-user nav-icon"></i><span class="nav-icon-label">Account</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="logout()">
+        <i class="fas fa-sign-out-alt nav-icon"></i><span class="nav-icon-label">Logout</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Deploy Card -->
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-globe" style="color:#8c36ff"></i>
+      Deploy a Site
+    </div>
+    <div class="card-sub">Upload your project folder to get a live URL instantly — just like Netlify Drop.</div>
+
+    <!-- Drop Zone -->
+    <div class="drop-zone" id="dropZone" onclick="document.getElementById('folderInput').click()">
+      <input type="file" id="folderInput" webkitdirectory multiple accept="*/*">
+      <div class="drop-icon">📁</div>
+      <div class="drop-title">Drop your folder here</div>
+      <div class="drop-sub">or <span class="drop-browse">browse to select a folder</span><br>HTML, CSS, JS, images and more supported</div>
+    </div>
+
+    <div class="file-preview" id="filePreview">
+      <div class="file-preview-header">
+        <span class="file-preview-title" id="filePreviewTitle">0 files selected</span>
+        <span class="file-preview-clear" onclick="clearFiles()">✕ Clear</span>
+      </div>
+      <div class="file-list" id="fileList"></div>
+    </div>
+
+    <div class="site-name-wrap">
+      <label class="site-name-label">Site Name</label>
+      <input type="text" class="site-name-input" id="siteName" placeholder="my-awesome-site" oninput="updateSubdomainPreview()">
+      <div class="subdomain-preview" id="subdomainPreview"></div>
+    </div>
+
+    <div class="upload-progress" id="uploadProgress">
+      <div class="progress-bar-wrap"><div class="progress-bar-fill" id="progressFill"></div></div>
+      <div class="progress-label" id="progressLabel">Uploading...</div>
+    </div>
+
+    <button class="btn" id="deployBtn" onclick="deploySite()">🚀 Deploy Site</button>
+  </div>
+
+  <!-- Sites List Card -->
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-list" style="color:#8c36ff"></i>
+      Your Sites
+    </div>
+    <div id="sitesList">
+      <div class="empty-state"><i class="fas fa-spinner fa-pulse"></i>Loading sites...</div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="dk-dialog-overlay" id="dkDialogOverlay">
+  <div class="dk-dialog">
+    <div class="dk-dialog-icon" id="dkDialogIcon">⚠️</div>
+    <div class="dk-dialog-title" id="dkDialogTitle">Confirm</div>
+    <div class="dk-dialog-msg" id="dkDialogMsg"></div>
+    <input class="dk-dialog-input" id="dkDialogInput" type="text" style="display:none">
+    <div class="dk-dialog-btns" id="dkDialogBtns"></div>
+  </div>
+</div>
+
+<script>
+  const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+  const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  const BASE_DOMAIN = 'devra.name.ng';
+
+  let currentUser = null;
+  let selectedFiles = [];
+
+  async function checkAuth() {
+    const { data: { session }, error } = await _supabase.auth.getSession();
+    if (error || !session) { window.location.href = 'index.html'; return; }
+    currentUser = session.user;
+    await loadSites();
+  }
+
+  // ── File Selection ──────────────────────────────────────────────
+  const folderInput = document.getElementById('folderInput');
+  const dropZone = document.getElementById('dropZone');
+
+  folderInput.addEventListener('change', function(e) {
+    selectedFiles = Array.from(e.target.files);
+    renderFilePreview();
+  });
+
+  // Drag & Drop
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    const items = e.dataTransfer.items;
+    if (items) {
+      const files = [];
+      const traverseEntry = (entry, path='') => new Promise(res => {
+        if (entry.isFile) {
+          entry.file(f => { files.push(f); res(); });
+        } else if (entry.isDirectory) {
+          const reader = entry.createReader();
+          reader.readEntries(async entries => {
+            for (const ent of entries) await traverseEntry(ent, path + entry.name + '/');
+            res();
+          });
+        } else res();
+      });
+      Promise.all(Array.from(items).map(item => {
+        const entry = item.webkitGetAsEntry();
+        return entry ? traverseEntry(entry) : Promise.resolve();
+      })).then(() => { selectedFiles = files; renderFilePreview(); });
+    } else {
+      selectedFiles = Array.from(e.dataTransfer.files);
+      renderFilePreview();
+    }
+  });
+
+  function renderFilePreview() {
+    const preview = document.getElementById('filePreview');
+    const list = document.getElementById('fileList');
+    const title = document.getElementById('filePreviewTitle');
+    if (!selectedFiles.length) { preview.classList.remove('show'); return; }
+    preview.classList.add('show');
+    title.textContent = `${selectedFiles.length} file${selectedFiles.length>1?'s':''} selected`;
+    const maxShow = 10;
+    const items = selectedFiles.slice(0, maxShow).map(f => {
+      const icon = getFileIcon(f.name);
+      return `<div class="file-list-item"><i class="${icon}"></i>${escapeHtml(f.name || f.webkitRelativePath || 'file')}</div>`;
+    }).join('');
+    list.innerHTML = items + (selectedFiles.length > maxShow ? `<div class="file-list-item" style="color:rgba(255,255,255,0.3)">...and ${selectedFiles.length - maxShow} more</div>` : '');
+  }
+
+  function getFileIcon(name) {
+    const ext = (name || '').split('.').pop().toLowerCase();
+    if (['html','htm'].includes(ext)) return 'fab fa-html5';
+    if (ext === 'css') return 'fab fa-css3-alt';
+    if (['js','ts'].includes(ext)) return 'fab fa-js';
+    if (['png','jpg','jpeg','gif','svg','webp','ico'].includes(ext)) return 'fas fa-image';
+    return 'fas fa-file';
+  }
+
+  function clearFiles() {
+    selectedFiles = [];
+    document.getElementById('folderInput').value = '';
+    document.getElementById('filePreview').classList.remove('show');
+  }
+
+  function updateSubdomainPreview() {
+    const name = document.getElementById('siteName').value.trim();
+    const preview = document.getElementById('subdomainPreview');
+    if (!name) { preview.textContent = ''; return; }
+    const slug = toSlug(name);
+    preview.textContent = `🔗 ${slug}.${BASE_DOMAIN}`;
+  }
+
+  function toSlug(str) {
+    return str.toLowerCase().replace(/[^a-z0-9-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  }
+
+  // ── Deploy ──────────────────────────────────────────────────────
+  async function deploySite() {
+    const name = document.getElementById('siteName').value.trim();
+    if (!name) { toast('Please enter a site name', 'err'); return; }
+    if (!selectedFiles.length) { toast('Please select a folder to upload', 'err'); return; }
+
+    const slug = toSlug(name);
+    if (!slug) { toast('Invalid site name', 'err'); return; }
+
+    // Check for index.html
+    const hasIndex = selectedFiles.some(f => {
+      const fname = (f.name || f.webkitRelativePath || '').toLowerCase();
+      return fname === 'index.html' || fname.endsWith('/index.html');
+    });
+    if (!hasIndex) { toast('No index.html found in your files', 'err'); return; }
+
+    const btn = document.getElementById('deployBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="bsp"></span>Deploying...';
+    document.getElementById('uploadProgress').classList.add('show');
+    setProgress(10, 'Preparing files...');
+
+    try {
+      // Check if subdomain already exists
+      const { data: existing } = await _supabase.from('sites').select('id').eq('subdomain', slug).eq('user_id', currentUser.id);
+      const siteId = (existing && existing.length > 0) ? existing[0].id : crypto.randomUUID();
+
+      setProgress(20, 'Uploading files...');
+
+      let uploaded = 0;
+      const total = selectedFiles.length;
+
+      for (const file of selectedFiles) {
+        const relativePath = file.webkitRelativePath || file.name;
+        // Strip top-level folder name
+        const parts = relativePath.split('/');
+        const filePath = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
+        const storagePath = `sites/${currentUser.id}/${slug}/${filePath}`;
+
+        const arrayBuffer = await file.arrayBuffer();
+        const { error: uploadError } = await _supabase.storage.from('site-files').upload(storagePath, arrayBuffer, {
+          contentType: file.type || 'application/octet-stream',
+          upsert: true
+        });
+        if (uploadError && uploadError.message !== 'The resource already exists') {
+          console.warn('Upload warning:', uploadError.message);
+        }
+        uploaded++;
+        const pct = 20 + Math.floor((uploaded / total) * 65);
+        setProgress(pct, `Uploading ${uploaded}/${total} files...`);
+      }
+
+      setProgress(88, 'Saving site...');
+
+      const siteData = {
+        id: siteId,
+        user_id: currentUser.id,
+        name: name,
+        subdomain: slug,
+        status: 'live',
+        file_count: selectedFiles.length,
+        updated_at: new Date().toISOString()
+      };
+
+      let dbError;
+      if (existing && existing.length > 0) {
+        const { error } = await _supabase.from('sites').update(siteData).eq('id', siteId);
+        dbError = error;
+      } else {
+        siteData.created_at = new Date().toISOString();
+        const { error } = await _supabase.from('sites').insert(siteData);
+        dbError = error;
+      }
+
+      if (dbError) throw new Error(dbError.message);
+
+      setProgress(100, '✅ Deployed!');
+      toast(`Site live at ${slug}.${BASE_DOMAIN} 🎉`, 'ok');
+      clearFiles();
+      document.getElementById('siteName').value = '';
+      document.getElementById('subdomainPreview').textContent = '';
+      await loadSites();
+
+      setTimeout(() => {
+        document.getElementById('uploadProgress').classList.remove('show');
+        setProgress(0, '');
+      }, 2500);
+
+    } catch (err) {
+      toast('Deploy failed: ' + err.message, 'err');
+      document.getElementById('uploadProgress').classList.remove('show');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🚀 Deploy Site';
+    }
+  }
+
+  function setProgress(pct, label) {
+    document.getElementById('progressFill').style.width = pct + '%';
+    document.getElementById('progressLabel').textContent = label;
+  }
+
+  // ── Load Sites ──────────────────────────────────────────────────
+  async function loadSites() {
+    const { data: sites, error } = await _supabase
+      .from('sites')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+
+    const container = document.getElementById('sitesList');
+    if (error || !sites || !sites.length) {
+      container.innerHTML = `<div class="empty-state"><i class="fas fa-globe"></i>No sites yet. Deploy your first one above!</div>`;
+      return;
+    }
+    container.innerHTML = sites.map(site => `
+      <div class="site-item">
+        <div class="site-item-header">
+          <div class="site-item-name">${escapeHtml(site.name)}</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.4)">
+            <span class="status-dot ${site.status==='live'?'dot-live':'dot-deploying'}"></span>
+            ${site.status==='live'?'Live':'Deploying'}
+          </div>
+        </div>
+        <div class="site-url"><a href="https://${site.subdomain}.${BASE_DOMAIN}" target="_blank" rel="noopener">🔗 ${site.subdomain}.${BASE_DOMAIN}</a></div>
+        <div class="site-meta">
+          <i class="fas fa-files" style="color:#8c36ff;font-size:10px"></i> ${site.file_count||0} files &nbsp;·&nbsp;
+          <i class="far fa-calendar" style="color:#8c36ff;font-size:10px"></i> ${new Date(site.created_at).toLocaleDateString()}
+        </div>
+        <div class="site-actions">
+          <button class="site-btn site-btn-visit" onclick="window.open('https://${site.subdomain}.${BASE_DOMAIN}','_blank')">
+            <i class="fas fa-external-link-alt"></i> Visit
+          </button>
+          <button class="site-btn site-btn-delete" onclick="deleteSite('${site.id}','${escAttr(site.subdomain)}')">
+            <i class="fas fa-trash-alt"></i> Delete
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function deleteSite(siteId, subdomain) {
+    const ok = await dkConfirm(`Delete "${subdomain}.${BASE_DOMAIN}" and all its files?`, '🗑️', 'Delete Site', true);
+    if (!ok) return;
+
+    toast('Deleting site files...', '');
+
+    // Delete storage files
+    try {
+      const { data: fileList } = await _supabase.storage.from('site-files').list(`sites/${currentUser.id}/${subdomain}`);
+      if (fileList && fileList.length) {
+        const paths = fileList.map(f => `sites/${currentUser.id}/${subdomain}/${f.name}`);
+        await _supabase.storage.from('site-files').remove(paths);
+      }
+    } catch(e) { console.warn('Storage delete:', e); }
+
+    const { error } = await _supabase.from('sites').delete().eq('id', siteId);
+    if (error) { toast('Failed to delete site', 'err'); return; }
+    toast('Site deleted', 'ok');
+    await loadSites();
+  }
+
+  async function logout() {
+    await _supabase.auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(window._toastTimer);
+    window._toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));
+  }
+  function escAttr(str) { return (str||'').replace(/['"]/g,''); }
+
+  // ── Custom Dialog ──
+  function dkConfirm(msg, icon='⚠️', title='Confirm', dangerBtn=false) {
+    return new Promise(res => {
+      document.getElementById('dkDialogIcon').textContent = icon;
+      document.getElementById('dkDialogTitle').textContent = title;
+      document.getElementById('dkDialogMsg').textContent = msg;
+      document.getElementById('dkDialogInput').style.display='none';
+      document.getElementById('dkDialogBtns').innerHTML = `<button class="${dangerBtn?'dk-btn-danger':'dk-btn-confirm'}" onclick="dkResolve(true)">Confirm</button><button class="dk-btn-cancel" onclick="dkResolve(false)">Cancel</button>`;
+      document.getElementById('dkDialogOverlay').classList.add('show');
+      window._dkResolve = res;
+    });
+  }
+  function dkResolve(val) {
+    document.getElementById('dkDialogOverlay').classList.remove('show');
+    if(window._dkResolve) { window._dkResolve(val); window._dkResolve=null; }
+  }
+  window.dkResolve = dkResolve;
+  window.deleteSite = deleteSite;
+  window.deploySite = deploySite;
+  window.clearFiles = clearFiles;
+  window.updateSubdomainPreview = updateSubdomainPreview;
+  window.logout = logout;
+
+  checkAuth();
+</script>
+</body>
+</html>

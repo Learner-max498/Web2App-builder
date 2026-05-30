@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DropKit — Build History</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'DM Sans', sans-serif;
+      min-height: 100vh;
+      background: #000;
+      color: white;
+    }
+    .bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background: radial-gradient(ellipse at 30% 40%, rgba(128,0,255,0.15) 0%, #000000 70%);
+    }
+    .page {
+      position: relative;
+      z-index: 10;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+      padding-top: 12px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .logo {
+      font-family: 'Space Grotesk', sans-serif;
+      font-size: 28px;
+      font-weight: 700;
+      color: #8c36ff;
+      text-decoration: none;
+    }
+    .nav-icons {
+      display: flex;
+      gap: 18px;
+    }
+    .nav-icon {
+      color: rgba(255,255,255,0.6);
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .nav-icon:hover, .nav-icon.active {
+      color: #8c36ff;
+    }
+    .nav-icon-wrap {
+      display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
+    }
+    .nav-icon-wrap .nav-icon { font-size: 20px; }
+    .nav-icon-label {
+      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
+      text-transform: uppercase; color: rgba(255,255,255,0.4);
+    }
+    .nav-icon-wrap:hover .nav-icon, .nav-icon-wrap.active .nav-icon { color: #8c36ff; }
+    .nav-icon-wrap:hover .nav-icon-label, .nav-icon-wrap.active .nav-icon-label { color: #8c36ff; }
+    .dk-dialog-overlay { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:24px; }
+    .dk-dialog-overlay.show { display:flex; }
+    .dk-dialog { background:rgba(20,20,20,0.98); border:1px solid rgba(128,0,255,0.4); border-radius:24px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.8); animation:dialogPop 0.2s ease; }
+    @keyframes dialogPop { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+    .dk-dialog-icon { font-size:32px; text-align:center; margin-bottom:12px; }
+    .dk-dialog-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:800; text-align:center; margin-bottom:8px; }
+    .dk-dialog-msg { font-size:13px; color:rgba(255,255,255,0.6); text-align:center; line-height:1.6; margin-bottom:20px; }
+    .dk-dialog-input { width:100%; padding:12px 14px; background:rgba(0,0,0,0.5); border:1.5px solid rgba(128,0,255,0.3); border-radius:12px; color:white; font-size:14px; outline:none; margin-bottom:16px; }
+    .dk-dialog-btns { display:flex; gap:10px; }
+    .dk-dialog-btns button { flex:1; padding:12px; border:none; border-radius:12px; font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.15s; }
+    .dk-btn-confirm { background:#8c36ff; color:white; }
+    .dk-btn-cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); }
+    .dk-btn-danger { background:rgba(255,68,68,0.15); color:#ff4444; border:1px solid rgba(255,68,68,0.3); }
+    .dk-btn-danger:hover { background:#ff4444 !important; color:white; }
+    .card {
+      background: rgba(20,20,20,0.7);
+      border: 1px solid rgba(128,0,255,0.25);
+      border-radius: 28px;
+      padding: 24px;
+      backdrop-filter: blur(20px);
+      margin-bottom: 20px;
+    }
+    .card-title {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .filter-bar {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 8px 16px;
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(128,0,255,0.25);
+      border-radius: 30px;
+      color: rgba(255,255,255,0.6);
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s;
+    }
+    .filter-btn.active {
+      background: #8c36ff;
+      border-color: #8c36ff;
+      color: white;
+    }
+    .filter-btn:hover:not(.active) {
+      border-color: #8c36ff;
+    }
+    .builds-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .build-item {
+      background: rgba(0,0,0,0.3);
+      border-radius: 20px;
+      padding: 16px;
+      transition: all 0.2s;
+    }
+    .build-item:hover {
+      background: rgba(128,0,255,0.1);
+    }
+    .build-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .build-title {
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .status-badge {
+      font-size: 10px;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 600;
+    }
+    .status-completed {
+      background: rgba(0,200,100,0.2);
+      color: #00cc88;
+    }
+    .status-pending {
+      background: rgba(255,170,0,0.2);
+      color: #ffaa00;
+    }
+    .status-failed {
+      background: rgba(255,68,68,0.2);
+      color: #ff4444;
+    }
+    .status-processing {
+      background: rgba(140,54,255,0.2);
+      color: #8c36ff;
+    }
+    .build-details {
+      font-size: 12px;
+      color: rgba(255,255,255,0.5);
+      margin-bottom: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .build-details i {
+      width: 14px;
+      color: #8c36ff;
+    }
+    .build-actions {
+      display: flex;
+      gap: 12px;
+    }
+    .build-actions a, .build-actions button {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.5);
+      font-size: 16px;
+      cursor: pointer;
+      padding: 6px 10px;
+      border-radius: 8px;
+      transition: all 0.2s;
+    }
+    .build-actions a:hover, .build-actions button:hover {
+      color: #8c36ff;
+      background: rgba(128,0,255,0.1);
+    }
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: rgba(255,255,255,0.4);
+    }
+    .toast {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%) translateY(16px);
+      background: rgba(20,20,20,0.95);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 30px;
+      font-size: 13px;
+      font-weight: 600;
+      opacity: 0;
+      transition: all 0.28s;
+      z-index: 9000;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
+      border: 1px solid #8c36ff;
+      white-space: nowrap;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    .toast.err { background: rgba(180,40,40,0.95); border-color: #ff4444; }
+    .toast.ok { background: rgba(0,120,80,0.95); border-color: #00cc88; }
+    .delete-all {
+      background: rgba(255,68,68,0.2);
+      border-color: #ff4444;
+      color: #ff4444;
+    }
+    .delete-all:hover {
+      background: #ff4444;
+      color: white;
+    }
+    @media (max-width: 600px) {
+      .build-header { flex-direction: column; }
+      .build-details { flex-direction: column; gap: 6px; }
+    }
+  </style>
+</head>
+<body>
+<div class="bg"></div>
+<div class="page">
+  <div class="header">
+    <a href="builder.html" class="logo">DropKit</a>
+    <div class="nav-icons">
+      <div class="nav-icon-wrap" onclick="location.href='builder.html'">
+        <i class="fas fa-mobile-alt nav-icon"></i><span class="nav-icon-label">Builder</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="location.href='sites.html'">
+        <i class="fas fa-globe nav-icon"></i><span class="nav-icon-label">Sites</span>
+      </div>
+      <div class="nav-icon-wrap active" onclick="location.href='builds.html'">
+        <i class="fas fa-history nav-icon"></i><span class="nav-icon-label">Builds</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="location.href='account.html'">
+        <i class="fas fa-user nav-icon"></i><span class="nav-icon-label">Account</span>
+      </div>
+      <div class="nav-icon-wrap" onclick="logout()">
+        <i class="fas fa-sign-out-alt nav-icon"></i><span class="nav-icon-label">Logout</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">
+      <i class="fas fa-history" style="color:#8c36ff"></i>
+      Build History
+    </div>
+    
+    <div class="filter-bar">
+      <button class="filter-btn active" data-filter="all" onclick="filterBuilds('all')">All</button>
+      <button class="filter-btn" data-filter="completed" onclick="filterBuilds('completed')">Completed</button>
+      <button class="filter-btn" data-filter="pending" onclick="filterBuilds('pending')">Pending</button>
+      <button class="filter-btn" data-filter="failed" onclick="filterBuilds('failed')">Failed</button>
+      <button class="filter-btn delete-all" onclick="deleteAllBuilds()">Delete All</button>
+    </div>
+
+    <div id="buildsList" class="builds-list">
+      <div class="empty-state">
+        <i class="fas fa-spinner fa-pulse"></i> Loading builds...
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+
+  const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  let currentUser = null;
+  let allBuilds = [];
+  let currentFilter = 'all';
+
+  async function checkAuth() {
+    const { data: { session }, error } = await _supabase.auth.getSession();
+    if (error || !session) {
+      window.location.href = 'index.html';
+      return;
+    }
+    currentUser = session.user;
+    await loadBuilds();
+  }
+
+  function toast(msg, type = '') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type ? ' ' + type : '');
+    setTimeout(() => el.classList.remove('show'), 3500);
+  }
+
+  async function loadBuilds() {
+    const { data: builds, error } = await _supabase
+      .from('builds')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error(error);
+      document.getElementById('buildsList').innerHTML = '<div class="empty-state">Failed to load builds</div>';
+      return;
+    }
+
+    allBuilds = builds || [];
+    renderBuilds();
+  }
+
+  function renderBuilds() {
+    const filtered = currentFilter === 'all' 
+      ? allBuilds 
+      : allBuilds.filter(b => b.status === currentFilter);
+    
+    const container = document.getElementById('buildsList');
+    
+    if (filtered.length === 0) {
+      container.innerHTML = `<div class="empty-state">
+        <i class="fas fa-inbox"></i><br>
+        No ${currentFilter === 'all' ? '' : currentFilter + ' '}builds yet.
+      </div>`;
+      return;
+    }
+
+    container.innerHTML = filtered.map(build => `
+      <div class="build-item" data-id="${build.id}">
+        <div class="build-header">
+          <div class="build-title">${escapeHtml(build.app_name)}</div>
+          <span class="status-badge status-${build.status === 'completed' ? 'completed' : build.status === 'pending' ? 'pending' : 'failed'}">
+            ${build.status === 'completed' ? '✓ Completed' : build.status === 'pending' ? '⏳ Pending' : '✗ Failed'}
+          </span>
+        </div>
+        <div class="build-details">
+          <span><i class="fas fa-link"></i> ${escapeHtml(build.url)}</span>
+          <span><i class="far fa-calendar"></i> ${new Date(build.created_at).toLocaleString()}</span>
+        </div>
+        <div class="build-actions">
+          ${build.download_url ? `<a href="${build.download_url}" download><i class="fas fa-download"></i> APK</a>` : ''}
+          ${build.aab_url ? `<a href="${build.aab_url}" download><i class="fas fa-download"></i> AAB</a>` : ''}
+          <button onclick="deleteBuild('${build.id}')"><i class="fas fa-trash-alt"></i> Delete</button>
+          <button onclick="retryBuild('${build.url}', '${escapeAttr(build.app_name)}')" ${build.status === 'pending' ? 'disabled' : ''}>
+            <i class="fas fa-redo-alt"></i> Retry
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function filterBuilds(filter) {
+    currentFilter = filter;
+    document.querySelectorAll('.filter-btn').forEach(btn => {
+      btn.classList.remove('active');
+    });
+    document.querySelector(`.filter-btn[data-filter="${filter}"]`).classList.add('active');
+    renderBuilds();
+  }
+
+  async function deleteBuild(buildId) {
+    const ok = await dkConfirm('Delete this build permanently?', '🗑️', 'Delete Build', true);
+    if (!ok) return;
+    const { error } = await _supabase.from('builds').delete().eq('id', buildId);
+    if (error) {
+      toast('Failed to delete', 'err');
+    } else {
+      toast('Build deleted', 'ok');
+      await loadBuilds();
+    }
+  }
+
+  async function deleteAllBuilds() {
+    const ok = await dkConfirm('Delete ALL your builds? This cannot be undone.', '⚠️', 'Delete All Builds', true);
+    if (!ok) return;
+    const { error } = await _supabase.from('builds').delete().eq('user_id', currentUser.id);
+    if (error) {
+      toast('Failed to delete builds', 'err');
+    } else {
+      toast('All builds deleted', 'ok');
+      await loadBuilds();
+    }
+  }
+
+  function retryBuild(url, appName) {
+    // Store in localStorage and redirect to builder
+    localStorage.setItem('retry_url', url);
+    localStorage.setItem('retry_appname', appName);
+    window.location.href = 'builder.html';
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    });
+  }
+
+  function escapeAttr(str) {
+    if (!str) return '';
+    return str.replace(/['"]/g, '');
+  }
+
+  async function logout() {
+    await _supabase.auth.signOut();
+    window.location.href = 'index.html';
+  }
+
+  window.filterBuilds = filterBuilds;
+  window.deleteBuild = deleteBuild;
+  window.deleteAllBuilds = deleteAllBuilds;
+  window.retryBuild = retryBuild;
+  window.logout = logout;
+
+  // ── Custom Dialog ──
+  function dkConfirm(msg, icon='⚠️', title='Confirm', dangerBtn=false) {
+    return new Promise(res => {
+      document.getElementById('dkDialogIcon').textContent = icon;
+      document.getElementById('dkDialogTitle').textContent = title;
+      document.getElementById('dkDialogMsg').textContent = msg;
+      document.getElementById('dkDialogBtns').innerHTML = `<button class="${dangerBtn?'dk-btn-danger':'dk-btn-confirm'}" onclick="dkResolve(true)">Confirm</button><button class="dk-btn-cancel" onclick="dkResolve(false)">Cancel</button>`;
+      document.getElementById('dkDialogOverlay').classList.add('show');
+      window._dkResolve = res;
+    });
+  }
+  function dkResolve(val) {
+    document.getElementById('dkDialogOverlay').classList.remove('show');
+    if(window._dkResolve) { window._dkResolve(val); window._dkResolve=null; }
+  }
+  window.dkResolve = dkResolve;
+
+  checkAuth();
+</script>
+<div class="dk-dialog-overlay" id="dkDialogOverlay">
+  <div class="dk-dialog">
+    <div class="dk-dialog-icon" id="dkDialogIcon">⚠️</div>
+    <div class="dk-dialog-title" id="dkDialogTitle">Confirm</div>
+    <div class="dk-dialog-msg" id="dkDialogMsg"></div>
+    <input class="dk-dialog-input" id="dkDialogInput" type="text" style="display:none">
+    <div class="dk-dialog-btns" id="dkDialogBtns"></div>
+  </div>
+</div>
+</body>
+</html>
