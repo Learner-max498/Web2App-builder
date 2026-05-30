@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DropKit — Account</title>
+  <title>Devra — Account</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -28,25 +28,17 @@
       margin: 0 auto;
       padding: 20px;
     }
-    .header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 28px;
-      padding-top: 12px;
-      flex-wrap: wrap;
-      gap: 12px;
-    }
+    .header { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 24px; padding-top: 12px; gap: 12px; }
     .logo {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 28px;
+      font-size: 34px;
       font-weight: 700;
       color: #8c36ff;
       text-decoration: none;
     }
     .nav-icons {
       display: flex;
-      gap: 18px;
+      gap: 22px;
     }
     .nav-icon {
       color: rgba(255,255,255,0.6);
@@ -110,9 +102,40 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 12px;
+      margin: 0 auto 0;
       font-size: 40px;
       font-weight: bold;
+      position: relative;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.2s;
+    }
+    .avatar:hover .avatar-overlay { opacity: 1; }
+    .avatar img {
+      width: 100%; height: 100%;
+      object-fit: cover;
+      border-radius: 50%;
+      position: absolute; inset: 0;
+    }
+    .avatar-overlay {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.55);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      opacity: 0; transition: opacity 0.2s;
+      font-size: 22px;
+    }
+    .avatar-change-btn {
+      margin-top: 10px;
+      display: inline-block;
+      font-size: 12px; font-weight: 700;
+      color: #c7b2ff; cursor: pointer;
+      letter-spacing: 0.3px;
+    }
+    .avatar-change-btn:hover { color: #8c36ff; }
+    .avatar-uploading {
+      font-size: 11px; color: rgba(255,255,255,0.5);
+      margin-top: 6px; display: none;
     }
     input, select {
       width: 100%;
@@ -208,7 +231,7 @@
 <div class="bg"></div>
 <div class="page">
   <div class="header">
-    <a href="builder.html" class="logo">DropKit</a>
+    <a href="builder.html" class="logo">Devra</a>
     <div class="nav-icons">
       <div class="nav-icon-wrap" onclick="location.href='builder.html'">
         <i class="fas fa-mobile-alt nav-icon"></i><span class="nav-icon-label">Builder</span>
@@ -235,7 +258,13 @@
     </div>
     
     <div class="avatar-section">
-      <div class="avatar" id="avatarInitials">JD</div>
+      <div class="avatar" id="avatarEl" onclick="document.getElementById('avatarInput').click()">
+        <span id="avatarInitials">JD</span>
+        <div class="avatar-overlay">📷</div>
+      </div>
+      <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">
+      <div class="avatar-change-btn" onclick="document.getElementById('avatarInput').click()">Change Photo</div>
+      <div class="avatar-uploading" id="avatarUploading">⏳ Uploading...</div>
       <div id="adminBadge"></div>
     </div>
 
@@ -292,54 +321,113 @@
 
 <script>
   const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+  const SUPABASE_ANON_KEY = "sb_publishable_c6Rv2f_Rfgk6PDHVYBAcvQ_VxC2rENW";
 
   const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   let currentUser = null;
   let userProfile = null;
 
   async function checkAuth() {
-    const { data: { session }, error } = await _supabase.auth.getSession();
-    if (error || !session) {
-      window.location.href = 'index.html';
-      return;
+    let { data: { session } } = await _supabase.auth.getSession();
+    if (!session) {
+      await new Promise(resolve => {
+        const { data: { subscription } } = _supabase.auth.onAuthStateChange((event, sess) => {
+          subscription.unsubscribe();
+          session = sess;
+          resolve();
+        });
+        setTimeout(resolve, 2000);
+      });
     }
+    if (!session || !session.user) { window.location.href = 'index.html'; return; }
     currentUser = session.user;
     await loadProfile();
   }
 
   async function loadProfile() {
+    if (!currentUser) return;
+    const u = currentUser;
+
+    // Show auth data immediately
+    document.getElementById('profileEmail').innerText = u.email || '-';
+    document.getElementById('profileJoined').innerText = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
+    document.getElementById('profileRole').innerText = 'User';
+    const fallbackInitials = (u.user_metadata?.full_name || u.email || 'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+    document.getElementById('avatarInitials').innerText = fallbackInitials;
+    if (u.user_metadata?.full_name) document.getElementById('fullName').value = u.user_metadata.full_name;
+
+    // Load from profiles table
     const { data: profile, error } = await _supabase
       .from('profiles')
       .select('*')
-      .eq('id', currentUser.id)
+      .eq('id', u.id)
       .single();
 
     if (error || !profile) {
-      // Fallback to auth user data if profile table missing
-      const u = currentUser;
-      document.getElementById('profileEmail').innerText = u.email || '-';
-      document.getElementById('profileJoined').innerText = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
-      document.getElementById('profileRole').innerText = 'User';
-      const initials = (u.email || 'U').substring(0, 2).toUpperCase();
-      document.getElementById('avatarInitials').innerText = initials;
+      await _supabase.from('profiles').upsert({ id: u.id, email: u.email, full_name: u.user_metadata?.full_name || '', role: 'user' });
       return;
     }
 
     userProfile = profile;
-    
-    document.getElementById('profileEmail').innerText = profile.email;
-    document.getElementById('profileJoined').innerText = new Date(profile.created_at).toLocaleDateString();
-    document.getElementById('profileRole').innerHTML = profile.role === 'admin' ? '<span class="admin-badge">👑 Admin</span>' : profile.role;
+    document.getElementById('profileEmail').innerText = profile.email || u.email;
+    document.getElementById('profileJoined').innerText = new Date(profile.created_at || u.created_at).toLocaleDateString();
+    document.getElementById('profileRole').innerHTML = profile.role === 'admin' ? '<span class="admin-badge">👑 Admin</span>' : (profile.role || 'User');
     document.getElementById('fullName').value = profile.full_name || '';
-    
-    // Avatar initials
-    const initials = (profile.full_name || profile.email).split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    const initials = (profile.full_name || profile.email || u.email || 'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
     document.getElementById('avatarInitials').innerText = initials;
-    
+
+    // Show avatar image if exists
+    if (profile.avatar_url) {
+      setAvatarImage(profile.avatar_url);
+    }
+
     if (profile.role === 'admin') {
       document.getElementById('adminBadge').innerHTML = '<span class="admin-badge" style="margin-top:8px">👑 Administrator Access</span>';
     }
+  }
+
+  function setAvatarImage(url) {
+    const el = document.getElementById('avatarEl');
+    // Remove existing img if any
+    const existing = el.querySelector('img');
+    if (existing) existing.remove();
+    document.getElementById('avatarInitials').style.display = 'none';
+    const img = document.createElement('img');
+    img.src = url;
+    img.onerror = () => { img.remove(); document.getElementById('avatarInitials').style.display = ''; };
+    el.insertBefore(img, el.firstChild);
+  }
+
+  async function uploadAvatar(input) {
+    const file = input.files[0];
+    if (!file || !currentUser) return;
+    if (file.size > 2 * 1024 * 1024) { toast('Image must be under 2MB', 'err'); return; }
+
+    document.getElementById('avatarUploading').style.display = 'block';
+
+    // Convert to base64 preview instantly
+    const reader = new FileReader();
+    reader.onload = e => setAvatarImage(e.target.result);
+    reader.readAsDataURL(file);
+
+    // Upload to Supabase Storage
+    const ext = file.name.split('.').pop();
+    const path = `avatars/${currentUser.id}.${ext}`;
+    const { error: uploadErr } = await _supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
+
+    if (uploadErr) {
+      toast('Upload failed: ' + uploadErr.message, 'err');
+      document.getElementById('avatarUploading').style.display = 'none';
+      return;
+    }
+
+    const { data: { publicUrl } } = _supabase.storage.from('avatars').getPublicUrl(path);
+
+    // Save to profile
+    await _supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
+    document.getElementById('avatarUploading').style.display = 'none';
+    toast('Profile photo updated!', 'ok');
   }
 
   function toast(msg, type = '') {

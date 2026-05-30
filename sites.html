@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DropKit — Sites</title>
+  <title>Devra — Sites</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -12,9 +12,9 @@
     body { font-family: 'DM Sans', sans-serif; min-height: 100vh; background: #000; color: white; overflow-x: hidden; }
     .bg { position: fixed; inset: 0; z-index: 0; background: radial-gradient(ellipse at 30% 40%, rgba(128,0,255,0.15) 0%, #000 70%); }
     .page { position: relative; z-index: 10; max-width: 550px; margin: 0 auto; padding: 20px 20px 60px; }
-    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 28px; padding-top: 12px; }
-    .logo { font-family: 'Space Grotesk', sans-serif; font-size: 28px; font-weight: 700; color: #8c36ff; text-decoration: none; }
-    .nav-icons { display: flex; gap: 16px; align-items: center; }
+    .header { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 24px; padding-top: 12px; gap: 12px; }
+    .logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-decoration: none; }
+    .nav-icons { display: flex; gap: 22px; align-items: center; }
     .nav-icon-wrap { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; }
     .nav-icon-wrap .nav-icon { font-size: 20px; color: rgba(255,255,255,0.6); transition: all 0.2s; }
     .nav-icon-label { font-size: 9px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; color: rgba(255,255,255,0.4); transition: all 0.2s; }
@@ -134,7 +134,7 @@
 <div class="bg"></div>
 <div class="page">
   <div class="header">
-    <a href="builder.html" class="logo">DropKit</a>
+    <a href="builder.html" class="logo">Devra</a>
     <div class="nav-icons">
       <div class="nav-icon-wrap" onclick="location.href='builder.html'">
         <i class="fas fa-mobile-alt nav-icon"></i><span class="nav-icon-label">Builder</span>
@@ -218,7 +218,7 @@
 
 <script>
   const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+  const SUPABASE_ANON_KEY = "sb_publishable_c6Rv2f_Rfgk6PDHVYBAcvQ_VxC2rENW";
   const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   const BASE_DOMAIN = 'devra.name.ng';
 
@@ -373,7 +373,6 @@
         name: name,
         subdomain: slug,
         status: 'live',
-        file_count: selectedFiles.length,
         updated_at: new Date().toISOString()
       };
 
