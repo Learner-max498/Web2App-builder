@@ -1,0 +1,14 @@
+{
+  "rewrites": [
+    {
+      "source": "/:path*",
+      "has": [
+        {
+          "type": "host",
+          "value": "(?<subdomain>.+)\\.devra\\.name\\.ng"
+        }
+      ],
+      "destination": "https://jxdobdllxihmfssodrka.supabase.co/functions/v1/serve-site?site=:subdomain&path=/:path*"
+    }
+  ]
+}
