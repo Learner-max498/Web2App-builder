@@ -373,6 +373,7 @@
         name: name,
         subdomain: slug,
         status: 'live',
+        file_count: selectedFiles.length,
         updated_at: new Date().toISOString()
       };
 
@@ -427,16 +428,7 @@
       container.innerHTML = `<div class="empty-state"><i class="fas fa-globe"></i>No sites yet. Deploy your first one above!</div>`;
       return;
     }
-
-    // Count files for each site from storage
-    const sitesWithCount = await Promise.all(sites.map(async site => {
-      const { data: files } = await _supabase.storage
-        .from('site-files')
-        .list(site.id, { limit: 200 });
-      return { ...site, fileCount: files ? files.length : 0 };
-    }));
-
-    container.innerHTML = sitesWithCount.map(site => `
+    container.innerHTML = sites.map(site => `
       <div class="site-item">
         <div class="site-item-header">
           <div class="site-item-name">${escapeHtml(site.name)}</div>
@@ -447,7 +439,7 @@
         </div>
         <div class="site-url"><a href="https://${site.subdomain}.${BASE_DOMAIN}" target="_blank" rel="noopener">🔗 ${site.subdomain}.${BASE_DOMAIN}</a></div>
         <div class="site-meta">
-          <i class="fas fa-file" style="color:#8c36ff;font-size:10px"></i> ${site.fileCount} file${site.fileCount !== 1 ? 's' : ''} &nbsp;·&nbsp;
+          <i class="fas fa-files" style="color:#8c36ff;font-size:10px"></i> ${site.file_count || 0} file${(site.file_count || 0) !== 1 ? "s" : ""} &nbsp;·&nbsp;
           <i class="far fa-calendar" style="color:#8c36ff;font-size:10px"></i> ${new Date(site.created_at).toLocaleDateString()}
         </div>
         <div class="site-actions">
