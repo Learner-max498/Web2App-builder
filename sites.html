@@ -350,7 +350,7 @@
         // Strip top-level folder name
         const parts = relativePath.split('/');
         const filePath = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
-        const storagePath = `sites/${currentUser.id}/${slug}/${filePath}`;
+        const storagePath = `${siteId}/${filePath}`;
 
         const arrayBuffer = await file.arrayBuffer();
         const { error: uploadError } = await _supabase.storage.from('site-files').upload(storagePath, arrayBuffer, {
@@ -439,7 +439,7 @@
         </div>
         <div class="site-url"><a href="https://${site.subdomain}.${BASE_DOMAIN}" target="_blank" rel="noopener">🔗 ${site.subdomain}.${BASE_DOMAIN}</a></div>
         <div class="site-meta">
-          <i class="fas fa-files" style="color:#8c36ff;font-size:10px"></i> ${site.file_count || 0} file${(site.file_count || 0) !== 1 ? "s" : ""} &nbsp;·&nbsp;
+          <i class="fas fa-files" style="color:#8c36ff;font-size:10px"></i> ${site.file_count||0} files &nbsp;·&nbsp;
           <i class="far fa-calendar" style="color:#8c36ff;font-size:10px"></i> ${new Date(site.created_at).toLocaleDateString()}
         </div>
         <div class="site-actions">
