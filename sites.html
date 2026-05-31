@@ -350,6 +350,7 @@
         // Strip top-level folder name
         const parts = relativePath.split('/');
         const filePath = parts.length > 1 ? parts.slice(1).join('/') : parts[0];
+        // Use siteId as folder — matches serve-site function
         const storagePath = `${siteId}/${filePath}`;
 
         const arrayBuffer = await file.arrayBuffer();
@@ -357,8 +358,8 @@
           contentType: file.type || 'application/octet-stream',
           upsert: true
         });
-        if (uploadError && uploadError.message !== 'The resource already exists') {
-          console.warn('Upload warning:', uploadError.message);
+        if (uploadError) {
+          throw new Error(`Upload failed for ${filePath}: ${uploadError.message}`);
         }
         uploaded++;
         const pct = 20 + Math.floor((uploaded / total) * 65);
