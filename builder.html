@@ -501,15 +501,10 @@
         body: JSON.stringify(payload)
       });
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}));
-        throw new Error(errData.error || `Server error ${response.status}`);
-      }
-
       const result = await response.json();
 
-      if (!result.job_id) {
-        throw new Error('No job ID returned from server. Please try again.');
+      if (!response.ok) {
+        throw new Error(result.error || 'Build request failed');
       }
 
       currentBuildJobId = result.job_id;
@@ -559,38 +554,27 @@
 
   async function pollBuildStatus(jobId) {
     try {
-      // Poll directly from DB — the GitHub Actions workflow writes status here
-      const { data, error } = await _supabase
-        .from('builds')
-        .select('status, download_url, aab_url, error, created_at')
-        .eq('id', jobId)
-        .single();
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/build-status`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+          'apikey': SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ job_id: jobId })
+      });
 
-      if (error || !data) { console.error('Poll error:', error); return; }
+      const result = await response.json();
 
-      // Timeout guard: if still pending after 15 minutes, mark as failed
-      const age = Date.now() - new Date(data.created_at).getTime();
-      if ((data.status === 'pending' || data.status === 'processing') && age > 15 * 60 * 1000) {
-        if (pollInterval) clearInterval(pollInterval);
-        await _supabase.from('builds').update({ status: 'failed', error: 'Build timed out' }).eq('id', jobId);
-        document.getElementById('progressFill').style.width = '100%';
-        document.getElementById('statusMsg').innerHTML = `❌ Build timed out after 15 minutes.`;
-        document.getElementById('statusMsg').style.color = '#ff4444';
-        document.getElementById('buildBtn').disabled = false;
-        document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
-        setTimeout(() => { document.getElementById('buildProgress').style.display = 'none'; }, 5000);
-        return;
-      }
-
-      if (data.status === 'completed') {
+      if (result.status === 'completed') {
         if (pollInterval) clearInterval(pollInterval);
         document.getElementById('progressFill').style.width = '100%';
         document.getElementById('progressFill').classList.remove('active');
         document.getElementById('statusMsg').innerHTML = `
           <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;align-items:center;">
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-              <a href="${data.download_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:#8c36ff;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📥 Download APK</a>
-              ${data.aab_url ? `<a href="${data.aab_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:rgba(67,232,160,0.15);border:1px solid rgba(67,232,160,0.4);color:#43e8a0;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📦 Download AAB</a>` : ''}
+              <a href="${result.download_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:#8c36ff;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📥 Download APK</a>
+              ${result.aab_url ? `<a href="${result.aab_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:rgba(67,232,160,0.15);border:1px solid rgba(67,232,160,0.4);color:#43e8a0;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📦 Download AAB</a>` : ''}
             </div>
             <a href="https://wa.me/2349067004423?text=Hi%20Devra%2C%20I%20want%20to%20publish%20my%20app%20to%20the%20Play%20Store" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#25D366;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">
               🚀 Publish to Play Store — &#8358;5,000
@@ -598,27 +582,26 @@
           </div>`;
         document.getElementById('buildBtn').disabled = false;
         document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
-        toast('Build completed successfully!', 'ok');
+        toast('Build completed!', 'ok');
         await loadRecentBuilds();
         setTimeout(() => { document.getElementById('buildProgress').style.display = 'none'; }, 30000);
 
-      } else if (data.status === 'failed') {
+      } else if (result.status === 'failed') {
         if (pollInterval) clearInterval(pollInterval);
         document.getElementById('progressFill').style.width = '100%';
-        document.getElementById('statusMsg').innerHTML = `❌ Build failed: ${data.error || 'Unknown error'}`;
+        document.getElementById('progressFill').classList.remove('active');
+        document.getElementById('statusMsg').innerHTML = `❌ Build failed: ${result.error || 'Unknown error'}`;
         document.getElementById('statusMsg').style.color = '#ff4444';
         document.getElementById('buildBtn').disabled = false;
         document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
         setTimeout(() => { document.getElementById('buildProgress').style.display = 'none'; }, 8000);
 
-      } else if (data.status === 'processing') {
-        document.getElementById('progressFill').style.width = '70%';
-        document.getElementById('statusMsg').innerHTML = `⚙️ Compiling... (this takes 2–3 minutes)`;
+      } else if (result.status === 'pending') {
+        document.getElementById('progressFill').style.width = '60%';
+        document.getElementById('statusMsg').innerHTML = `⏳ Building... (${result.progress || 'in progress'})`;
 
-      } else {
-        // pending
-        document.getElementById('progressFill').style.width = '40%';
-        document.getElementById('statusMsg').innerHTML = `⏳ Building... (2–3 minutes)`;
+      } else if (result.status === 'not_found') {
+        document.getElementById('statusMsg').innerHTML = `⏳ Waiting for build to start...`;
       }
     } catch (err) {
       console.error('Poll error:', err);
