@@ -228,7 +228,17 @@
       background: #ff4444;
       color: white;
     }
-    @media (max-width: 600px) {
+    .bsp {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border: 2px solid rgba(140,54,255,0.3);
+      border-top-color: #8c36ff;
+      border-radius: 50%;
+      animation: spin 0.6s linear infinite;
+      vertical-align: middle;
+      margin-right: 4px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
       .build-header { flex-direction: column; }
       .build-details { flex-direction: column; gap: 6px; }
     }
@@ -259,10 +269,10 @@
     
     <div class="filter-bar">
       <button class="filter-btn active" data-filter="all" onclick="filterBuilds('all')">All</button>
-      <button class="filter-btn" data-filter="completed" onclick="filterBuilds('completed')">Completed</button>
-      <button class="filter-btn" data-filter="pending" onclick="filterBuilds('pending')">Pending</button>
-      <button class="filter-btn" data-filter="failed" onclick="filterBuilds('failed')">Failed</button>
-      <button class="filter-btn delete-all" onclick="deleteAllBuilds()">Delete All</button>
+      <button class="filter-btn" data-filter="completed" onclick="filterBuilds('completed')">✓ Completed</button>
+      <button class="filter-btn" data-filter="pending" onclick="filterBuilds('pending')">⏳ In Progress</button>
+      <button class="filter-btn" data-filter="failed" onclick="filterBuilds('failed')">✗ Failed</button>
+      <button class="filter-btn delete-all" onclick="deleteAllBuilds()">🗑 Delete All</button>
     </div>
 
     <div id="buildsList" class="builds-list">
@@ -306,6 +316,8 @@
     setTimeout(() => el.classList.remove('show'), 3500);
   }
 
+  let refreshTimer = null;
+
   async function loadBuilds() {
     const { data: builds, error } = await _supabase
       .from('builds')
@@ -321,42 +333,68 @@
 
     allBuilds = builds || [];
     renderBuilds();
+
+    // Auto-refresh every 6s while any builds are in progress
+    const hasActive = allBuilds.some(b => b.status === 'pending' || b.status === 'processing');
+    if (hasActive) {
+      if (!refreshTimer) {
+        refreshTimer = setInterval(async () => {
+          await loadBuilds();
+        }, 6000);
+      }
+    } else {
+      if (refreshTimer) { clearInterval(refreshTimer); refreshTimer = null; }
+    }
   }
 
   function renderBuilds() {
-    const filtered = currentFilter === 'all' 
-      ? allBuilds 
-      : allBuilds.filter(b => b.status === currentFilter);
-    
+    const filtered = currentFilter === 'all'
+      ? allBuilds
+      : currentFilter === 'pending'
+        ? allBuilds.filter(b => b.status === 'pending' || b.status === 'processing')
+        : allBuilds.filter(b => b.status === currentFilter);
+
     const container = document.getElementById('buildsList');
-    
+
     if (filtered.length === 0) {
       container.innerHTML = `<div class="empty-state">
-        <i class="fas fa-inbox"></i><br>
+        <i class="fas fa-inbox" style="font-size:28px;margin-bottom:12px;display:block"></i>
         No ${currentFilter === 'all' ? '' : currentFilter + ' '}builds yet.
       </div>`;
       return;
+    }
+
+    function badgeHtml(build) {
+      const now = Date.now();
+      const age = now - new Date(build.created_at).getTime();
+      const isStale = age > 15 * 60 * 1000; // 15 minutes
+      if (build.status === 'completed') return `<span class="status-badge status-completed">✓ Completed</span>`;
+      if (build.status === 'failed') return `<span class="status-badge status-failed">✗ Failed</span>`;
+      if (build.status === 'pending' || build.status === 'processing') {
+        if (isStale) return `<span class="status-badge status-failed">⚠ Timed Out</span>`;
+        return `<span class="status-badge status-processing"><span class="bsp"></span>Building...</span>`;
+      }
+      return `<span class="status-badge">${build.status}</span>`;
     }
 
     container.innerHTML = filtered.map(build => `
       <div class="build-item" data-id="${build.id}">
         <div class="build-header">
           <div class="build-title">${escapeHtml(build.app_name)}</div>
-          <span class="status-badge status-${build.status === 'completed' ? 'completed' : build.status === 'pending' ? 'pending' : 'failed'}">
-            ${build.status === 'completed' ? '✓ Completed' : build.status === 'pending' ? '⏳ Pending' : '✗ Failed'}
-          </span>
+          ${badgeHtml(build)}
         </div>
         <div class="build-details">
           <span><i class="fas fa-link"></i> ${escapeHtml(build.url)}</span>
           <span><i class="far fa-calendar"></i> ${new Date(build.created_at).toLocaleString()}</span>
+          ${build.error ? `<span style="color:#ff4444"><i class="fas fa-exclamation-circle"></i> ${escapeHtml(build.error)}</span>` : ''}
         </div>
         <div class="build-actions">
-          ${build.download_url ? `<a href="${build.download_url}" download><i class="fas fa-download"></i> APK</a>` : ''}
-          ${build.aab_url ? `<a href="${build.aab_url}" download><i class="fas fa-download"></i> AAB</a>` : ''}
-          <button onclick="deleteBuild('${build.id}')"><i class="fas fa-trash-alt"></i> Delete</button>
-          <button onclick="retryBuild('${build.url}', '${escapeAttr(build.app_name)}')" ${build.status === 'pending' ? 'disabled' : ''}>
+          ${build.download_url ? `<a href="${build.download_url}" download title="Download APK"><i class="fas fa-download"></i> APK</a>` : ''}
+          ${build.aab_url ? `<a href="${build.aab_url}" download title="Download AAB"><i class="fas fa-file-archive"></i> AAB</a>` : ''}
+          <button onclick="retryBuild('${escapeAttr(build.url)}', '${escapeAttr(build.app_name)}')" ${(build.status === 'pending' || build.status === 'processing') ? 'disabled title="Build in progress"' : ''}>
             <i class="fas fa-redo-alt"></i> Retry
           </button>
+          <button onclick="deleteBuild('${build.id}')"><i class="fas fa-trash-alt"></i> Delete</button>
         </div>
       </div>
     `).join('');

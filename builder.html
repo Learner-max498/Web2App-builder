@@ -528,67 +528,65 @@
 
   async function pollBuildStatus(jobId) {
     try {
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/build-status`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'apikey': SUPABASE_ANON_KEY,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ job_id: jobId })
-      });
+      // Poll directly from DB — the GitHub Actions workflow writes status here
+      const { data, error } = await _supabase
+        .from('builds')
+        .select('status, download_url, aab_url, error, created_at')
+        .eq('id', jobId)
+        .single();
 
-      const result = await response.json();
+      if (error || !data) { console.error('Poll error:', error); return; }
 
-      if (result.status === 'completed') {
+      // Timeout guard: if still pending after 15 minutes, mark as failed
+      const age = Date.now() - new Date(data.created_at).getTime();
+      if ((data.status === 'pending' || data.status === 'processing') && age > 15 * 60 * 1000) {
+        if (pollInterval) clearInterval(pollInterval);
+        await _supabase.from('builds').update({ status: 'failed', error: 'Build timed out' }).eq('id', jobId);
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('statusMsg').innerHTML = `❌ Build timed out after 15 minutes.`;
+        document.getElementById('statusMsg').style.color = '#ff4444';
+        document.getElementById('buildBtn').disabled = false;
+        document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
+        setTimeout(() => { document.getElementById('buildProgress').style.display = 'none'; }, 5000);
+        return;
+      }
+
+      if (data.status === 'completed') {
         if (pollInterval) clearInterval(pollInterval);
         document.getElementById('progressFill').style.width = '100%';
         document.getElementById('statusMsg').innerHTML = `
           <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;align-items:center;">
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
-              <a href="${result.download_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:#8c36ff;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📥 Download APK</a>
-              ${result.aab_url ? '<a href="'+result.aab_url+'" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:rgba(67,232,160,0.15);border:1px solid rgba(67,232,160,0.4);color:#43e8a0;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📦 Download AAB</a>' : ''}
+              <a href="${data.download_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:#8c36ff;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📥 Download APK</a>
+              ${data.aab_url ? `<a href="${data.aab_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:rgba(67,232,160,0.15);border:1px solid rgba(67,232,160,0.4);color:#43e8a0;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📦 Download AAB</a>` : ''}
             </div>
             <a href="https://wa.me/2349067004423?text=Hi%20Devra%2C%20I%20want%20to%20publish%20my%20app%20to%20the%20Play%20Store" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#25D366;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">
               🚀 Publish to Play Store — &#8358;5,000
             </a>
           </div>`;
-        await _supabase.from('builds').update({
-          status: 'completed',
-          download_url: result.download_url,
-          aab_url: result.aab_url || null
-        }).eq('id', jobId);
-
         document.getElementById('buildBtn').disabled = false;
         document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
-        
         toast('Build completed successfully!', 'ok');
         await loadRecentBuilds();
-        
-        setTimeout(() => {
-          document.getElementById('buildProgress').style.display = 'none';
-        }, 3000);
-        
-      } else if (result.status === 'failed') {
+        setTimeout(() => { document.getElementById('buildProgress').style.display = 'none'; }, 30000);
+
+      } else if (data.status === 'failed') {
         if (pollInterval) clearInterval(pollInterval);
         document.getElementById('progressFill').style.width = '100%';
-        document.getElementById('statusMsg').innerHTML = `❌ Build failed: ${result.error}`;
+        document.getElementById('statusMsg').innerHTML = `❌ Build failed: ${data.error || 'Unknown error'}`;
         document.getElementById('statusMsg').style.color = '#ff4444';
-        
-        await _supabase.from('builds').update({
-          status: 'failed'
-        }).eq('id', jobId);
-        
         document.getElementById('buildBtn').disabled = false;
         document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
-        
-        setTimeout(() => {
-          document.getElementById('buildProgress').style.display = 'none';
-        }, 5000);
-        
-      } else if (result.status === 'pending') {
-        document.getElementById('progressFill').style.width = '60%';
-        document.getElementById('statusMsg').innerHTML = `⏳ Building... ${result.progress || 'in progress'}`;
+        setTimeout(() => { document.getElementById('buildProgress').style.display = 'none'; }, 8000);
+
+      } else if (data.status === 'processing') {
+        document.getElementById('progressFill').style.width = '70%';
+        document.getElementById('statusMsg').innerHTML = `⚙️ Compiling... (this takes 2–3 minutes)`;
+
+      } else {
+        // pending
+        document.getElementById('progressFill').style.width = '40%';
+        document.getElementById('statusMsg').innerHTML = `⏳ Building... (2–3 minutes)`;
       }
     } catch (err) {
       console.error('Poll error:', err);
