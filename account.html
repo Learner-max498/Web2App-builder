@@ -305,28 +305,31 @@
       .eq('id', currentUser.id)
       .single();
 
+    const u = currentUser;
+    // Also check auth user_metadata for name (fallback storage)
+    const metaName = u.user_metadata?.full_name || '';
+
     if (error || !profile) {
-      // Fallback to auth user data if profile table missing
-      const u = currentUser;
       document.getElementById('profileEmail').innerText = u.email || '-';
       document.getElementById('profileJoined').innerText = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
       document.getElementById('profileRole').innerText = 'User';
-      const initials = (u.email || 'U').substring(0, 2).toUpperCase();
+      document.getElementById('fullName').value = metaName;
+      const initials = (metaName || u.email || 'U').split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase();
       document.getElementById('avatarInitials').innerText = initials;
       return;
     }
 
     userProfile = profile;
-    
-    document.getElementById('profileEmail').innerText = profile.email;
-    document.getElementById('profileJoined').innerText = new Date(profile.created_at).toLocaleDateString();
-    document.getElementById('profileRole').innerHTML = profile.role === 'admin' ? '<span class="admin-badge">👑 Admin</span>' : profile.role;
-    document.getElementById('fullName').value = profile.full_name || '';
-    
-    // Avatar initials
-    const initials = (profile.full_name || profile.email).split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    const displayName = profile.full_name || metaName || '';
+    document.getElementById('profileEmail').innerText = profile.email || u.email;
+    document.getElementById('profileJoined').innerText = new Date(profile.created_at || u.created_at).toLocaleDateString();
+    document.getElementById('profileRole').innerHTML = profile.role === 'admin' ? '<span class="admin-badge">👑 Admin</span>' : (profile.role || 'User');
+    document.getElementById('fullName').value = displayName;
+
+    const initials = (displayName || profile.email || u.email).split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase();
     document.getElementById('avatarInitials').innerText = initials;
-    
+
     if (profile.role === 'admin') {
       document.getElementById('adminBadge').innerHTML = '<span class="admin-badge" style="margin-top:8px">👑 Administrator Access</span>';
     }
@@ -341,18 +344,42 @@
 
   async function updateProfile() {
     const fullName = document.getElementById('fullName').value.trim();
-    
-    const { error } = await _supabase
-      .from('profiles')
-      .update({ full_name: fullName, updated_at: new Date().toISOString() })
-      .eq('id', currentUser.id);
+    const btn = document.querySelector('[onclick="updateProfile()"]');
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
 
-    if (error) {
-      toast(error.message, 'err');
+    // Try upsert first (avoids the RLS UPDATE recursion by using INSERT ON CONFLICT)
+    const { error: upsertError } = await _supabase
+      .from('profiles')
+      .upsert({
+        id: currentUser.id,
+        email: currentUser.email,
+        full_name: fullName,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+
+    if (upsertError) {
+      // Fallback: store name in Supabase auth user_metadata (bypasses profiles table RLS entirely)
+      const { error: metaError } = await _supabase.auth.updateUser({
+        data: { full_name: fullName }
+      });
+
+      if (metaError) {
+        toast('Update failed: ' + metaError.message, 'err');
+      } else {
+        // Update display immediately from auth metadata
+        document.getElementById('fullName').value = fullName;
+        const initials = fullName.split(' ').filter(Boolean).map(n => n[0]).join('').substring(0, 2).toUpperCase() || currentUser.email.substring(0, 2).toUpperCase();
+        document.getElementById('avatarInitials').innerText = initials;
+        toast('Profile updated!', 'ok');
+      }
     } else {
       toast('Profile updated!', 'ok');
       await loadProfile();
     }
+
+    btn.disabled = false;
+    btn.textContent = 'Update Profile';
   }
 
   async function changePassword() {
