@@ -2,7 +2,7 @@ name: Build WebView APK
 
 on:
   workflow_dispatch:
-    inputs:
+    workflow_dispatch:
       url:
         description: 'Website URL'
         required: true
@@ -20,384 +20,561 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
-      
+
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
       - name: Create Android Project
+        shell: bash
+        env:
+          APP_URL: ${{ github.event.inputs.url }}
+          APP_NAME: ${{ github.event.inputs.app_name }}
+          ICON_PATH: ${{ github.event.inputs.icon_path }}
+          SUPA_URL: ${{ secrets.SUPABASE_URL }}
         run: |
-          PKG_SUFFIX=$(echo "${{ github.event.inputs.app_name }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
+          set -e
+
+          PKG_SUFFIX=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
           PKG_NAME="com.web2app.${PKG_SUFFIX}"
-          echo "Package name: ${PKG_NAME}"
+          echo "Package: ${PKG_NAME}"
 
-          mkdir -p app/src/main/java/$(echo $PKG_NAME | tr '.' '/')/
-          mkdir -p gradle/wrapper/
-          mkdir -p app/src/main/res/mipmap-hdpi/
-          mkdir -p app/src/main/res/mipmap-mdpi/
-          mkdir -p app/src/main/res/mipmap-xhdpi/
-          mkdir -p app/src/main/res/mipmap-xxhdpi/
-          mkdir -p app/src/main/res/mipmap-xxxhdpi/
-          mkdir -p app/src/main/res/mipmap-anydpi-v26/
-          mkdir -p app/src/main/res/drawable/
-          mkdir -p app/src/main/res/values/
+          mkdir -p app/src/main/java/$(echo $PKG_NAME | tr '.' '/')
+          mkdir -p gradle/wrapper
+          mkdir -p app/src/main/res/{mipmap-hdpi,mipmap-mdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi,mipmap-anydpi-v26,drawable,values}
 
-          cat > app/src/main/res/values/styles.xml << 'EOF'
-          <?xml version="1.0" encoding="utf-8"?>
-          <resources>
-              <style name="AppTheme" parent="android:Theme.Black">
-                  <item name="android:windowBackground">@android:color/black</item>
-                  <item name="android:windowNoTitle">true</item>
-                  <item name="android:windowFullscreen">false</item>
-              </style>
-          </resources>
-          EOF
+          cat > app/src/main/res/values/styles.xml << 'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:Theme.Black">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+</resources>
+XML
 
-          ICON_PATH="${{ github.event.inputs.icon_path }}"
+          ICON_ATTR=""
           if [ -n "$ICON_PATH" ]; then
             sudo apt-get install -q imagemagick -y
-
-            curl -s "${{ secrets.SUPABASE_URL }}/storage/v1/object/public/app-icons/${ICON_PATH}" \
-              -o /tmp/icon_orig.png
-
-            # Create regular icons (no padding - full bleed)
-            convert /tmp/icon_orig.png -resize 192x192! app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-            convert /tmp/icon_orig.png -resize 144x144! app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-            convert /tmp/icon_orig.png -resize 96x96!   app/src/main/res/mipmap-xhdpi/ic_launcher.png
-            convert /tmp/icon_orig.png -resize 72x72!   app/src/main/res/mipmap-hdpi/ic_launcher.png
-            convert /tmp/icon_orig.png -resize 48x48!   app/src/main/res/mipmap-mdpi/ic_launcher.png
-
-            # Create round icons (circle crop, no border)
-            for size in 192 144 96 72 48; do
-              case $size in
-                192) dir="mipmap-xxxhdpi" ;;
-                144) dir="mipmap-xxhdpi" ;;
-                96)  dir="mipmap-xhdpi" ;;
-                72)  dir="mipmap-hdpi" ;;
-                48)  dir="mipmap-mdpi" ;;
-              esac
-              convert /tmp/icon_orig.png -resize ${size}x${size}! \
-                \( +clone -alpha extract \
-                   -draw "fill black polygon 0,0 0,${size} ${size},${size} ${size},0 fill white circle $((size/2)),$((size/2)) $((size/2)),0" \
-                   \( +clone -flip \) -compose Multiply -composite \
-                   \( +clone -flop \) -compose Multiply -composite \
-                \) -alpha off -compose CopyOpacity -composite \
-                app/src/main/res/${dir}/ic_launcher_round.png 2>/dev/null || \
-              cp app/src/main/res/${dir}/ic_launcher.png app/src/main/res/${dir}/ic_launcher_round.png
-            done
-
-            # Create adaptive icon foreground (108x108dp = 432x432 at xxxhdpi)
-            # The foreground should fill the full 108dp with NO extra padding
-            convert /tmp/icon_orig.png -resize 432x432! app/src/main/res/drawable/ic_launcher_foreground.png
-
-            # Adaptive icon XML - transparent background so no white border
-            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
-            <?xml version="1.0" encoding="utf-8"?>
-            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-                <background android:drawable="@android:color/transparent"/>
-                <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-            </adaptive-icon>
-            EOF
-
-            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
-            <?xml version="1.0" encoding="utf-8"?>
-            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-                <background android:drawable="@android:color/transparent"/>
-                <foreground android:drawable="@drawable/ic_launcher_foreground"/>
-            </adaptive-icon>
-            EOF
-
-            ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
-          else
-            ICON_ATTR=''
+            curl -sf "${SUPA_URL}/storage/v1/object/public/app-icons/${ICON_PATH}" -o /tmp/icon_orig.png || true
+            if [ -f /tmp/icon_orig.png ] && file /tmp/icon_orig.png | grep -q image; then
+              convert /tmp/icon_orig.png -resize 192x192! app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 144x144! app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 96x96!   app/src/main/res/mipmap-xhdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 72x72!   app/src/main/res/mipmap-hdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 48x48!   app/src/main/res/mipmap-mdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 432x432! app/src/main/res/drawable/ic_launcher_foreground.png
+              for dir in mipmap-xxxhdpi mipmap-xxhdpi mipmap-xhdpi mipmap-hdpi mipmap-mdpi; do
+                cp app/src/main/res/${dir}/ic_launcher.png app/src/main/res/${dir}/ic_launcher_round.png
+              done
+              cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/transparent"/>
+    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+</adaptive-icon>
+XML
+              cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
+                 app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+              ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
+            fi
           fi
 
-          cat > app/src/main/AndroidManifest.xml << EOF
-          <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-              package="${PKG_NAME}">
-              <uses-permission android:name="android.permission.INTERNET"/>
-              <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
-              <application
-                  android:allowBackup="true"
-                  ${ICON_ATTR}
-                  android:theme="@style/AppTheme"
-                  android:label="${{ github.event.inputs.app_name }}"
-                  android:usesCleartextTraffic="true">
-                  <activity
-                      android:name=".MainActivity"
-                      android:configChanges="orientation|screenSize"
-                      android:exported="true">
-                      <intent-filter>
-                          <action android:name="android.intent.action.MAIN"/>
-                          <category android:name="android.intent.category.LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>
-          EOF
+          JAVA_DIR="app/src/main/java/$(echo $PKG_NAME | tr '.' '/')"
 
-          cat > app/src/main/java/$(echo $PKG_NAME | tr '.' '/')/MainActivity.java << EOF
-          package ${PKG_NAME};
+          # Write AndroidManifest
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' \
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"${PKG_NAME}\">" \
+            '    <uses-permission android:name="android.permission.INTERNET"/>' \
+            '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' \
+            "    <application android:allowBackup=\"true\" ${ICON_ATTR} android:theme=\"@style/AppTheme\" android:label=\"${APP_NAME}\" android:usesCleartextTraffic=\"true\">" \
+            '        <activity android:name=".MainActivity" android:configChanges="orientation|screenSize" android:exported="true">' \
+            '            <intent-filter>' \
+            '                <action android:name="android.intent.action.MAIN"/>' \
+            '                <category android:name="android.intent.category.LAUNCHER"/>' \
+            '            </intent-filter>' \
+            '        </activity>' \
+            '    </application>' \
+            '</manifest>' > app/src/main/AndroidManifest.xml
 
-          import android.app.Activity;
-          import android.content.Context;
-          import android.graphics.Color;
-          import android.net.ConnectivityManager;
-          import android.net.NetworkInfo;
-          import android.os.Bundle;
-          import android.view.View;
-          import android.view.Window;
-          import android.widget.Button;
-          import android.widget.LinearLayout;
-          import android.widget.TextView;
-          import android.webkit.WebView;
-          import android.webkit.WebViewClient;
-          import android.webkit.WebSettings;
-          import android.webkit.WebChromeClient;
-
-          public class MainActivity extends Activity {
-              private WebView webView;
-              private LinearLayout offlineView;
-
-              @Override
-              protected void onCreate(Bundle savedInstanceState) {
-                  super.onCreate(savedInstanceState);
-                  requestWindowFeature(Window.FEATURE_NO_TITLE);
-
-                  // Offline view
-                  offlineView = new LinearLayout(this);
-                  offlineView.setOrientation(LinearLayout.VERTICAL);
-                  offlineView.setBackgroundColor(Color.parseColor("#0d0015"));
-                  offlineView.setGravity(android.view.Gravity.CENTER);
-                  offlineView.setPadding(60, 60, 60, 60);
-
-                  TextView emoji = new TextView(this);
-                  emoji.setText("📡");
-                  emoji.setTextSize(48);
-                  emoji.setGravity(android.view.Gravity.CENTER);
-
-                  TextView title = new TextView(this);
-                  title.setText("You're offline");
-                  title.setTextColor(Color.WHITE);
-                  title.setTextSize(22);
-                  title.setTypeface(null, android.graphics.Typeface.BOLD);
-                  title.setGravity(android.view.Gravity.CENTER);
-                  title.setPadding(0, 20, 0, 10);
-
-                  TextView sub = new TextView(this);
-                  sub.setText("Please check your internet connection and try again.");
-                  sub.setTextColor(Color.parseColor("#aaaaaa"));
-                  sub.setTextSize(14);
-                  sub.setGravity(android.view.Gravity.CENTER);
-                  sub.setPadding(0, 0, 0, 30);
-
-                  Button retryBtn = new Button(this);
-                  retryBtn.setText("Retry");
-                  retryBtn.setBackgroundColor(Color.parseColor("#8c36ff"));
-                  retryBtn.setTextColor(Color.WHITE);
-                  retryBtn.setPadding(60, 20, 60, 20);
-                  retryBtn.setOnClickListener(v -> {
-                      if (isOnline()) {
-                          offlineView.setVisibility(View.GONE);
-                          webView.setVisibility(View.VISIBLE);
-                          webView.reload();
-                      }
-                  });
-
-                  offlineView.addView(emoji);
-                  offlineView.addView(title);
-                  offlineView.addView(sub);
-                  offlineView.addView(retryBtn);
-
-                  webView = new WebView(this);
-                  webView.setBackgroundColor(Color.BLACK);
-                  webView.setAlpha(0f);
-
-                  WebSettings s = webView.getSettings();
-                  s.setJavaScriptEnabled(true);
-                  s.setDomStorageEnabled(true);
-                  s.setAllowFileAccess(true);
-                  s.setAllowContentAccess(true);
-                  s.setLoadWithOverviewMode(true);
-                  s.setUseWideViewPort(true);
-                  s.setBuiltInZoomControls(false);
-                  s.setSupportZoom(false);
-                  s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
-                  s.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
-                  s.setMediaPlaybackRequiresUserGesture(false);
-                  s.setDatabaseEnabled(true);
-                  s.setCacheMode(WebSettings.LOAD_DEFAULT);
-
-                  webView.setWebViewClient(new WebViewClient() {
-                      @Override
-                      public boolean shouldOverrideUrlLoading(WebView view, String url) {
-                          view.loadUrl(url);
-                          return true;
-                      }
-                      @Override
-                      public void onPageFinished(WebView view, String url) {
-                          view.animate().alpha(1f).setDuration(200).start();
-                      }
-                      @Override
-                      public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
-                          if (!isOnline()) {
-                              webView.setVisibility(View.GONE);
-                              offlineView.setVisibility(View.VISIBLE);
-                          }
-                      }
-                  });
-                  webView.setWebChromeClient(new WebChromeClient());
-
-                  if (isOnline()) {
-                      webView.loadUrl("${{ github.event.inputs.url }}");
-                  } else {
-                      webView.setVisibility(View.GONE);
-                      offlineView.setVisibility(View.VISIBLE);
-                  }
-
-                  android.widget.FrameLayout root = new android.widget.FrameLayout(this);
-                  root.addView(webView);
-                  root.addView(offlineView);
-                  setContentView(root);
-              }
-
-              private boolean isOnline() {
-                  ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
-                  NetworkInfo info = cm.getActiveNetworkInfo();
-                  return info != null && info.isConnected();
-              }
-
-              @Override
-              public void onBackPressed() {
-                  if (webView.canGoBack()) {
-                      webView.goBack();
-                  } else {
-                      super.onBackPressed();
-                  }
-              }
-          }
-          EOF
+          # Write MainActivity.java
+          cat > ${JAVA_DIR}/MainActivity.java << JAVAEOF
+package ${PKG_NAME};
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Bundle;
+import android.view.View;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
+import android.webkit.WebChromeClient;
+public class MainActivity extends Activity {
+    private WebView webView;
+    private LinearLayout offlineView;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        offlineView = new LinearLayout(this);
+        offlineView.setOrientation(LinearLayout.VERTICAL);
+        offlineView.setBackgroundColor(Color.parseColor("#0d0015"));
+        offlineView.setGravity(android.view.Gravity.CENTER);
+        offlineView.setPadding(60,60,60,60);
+        offlineView.setVisibility(View.GONE);
+        TextView tv1 = new TextView(this); tv1.setText("You are offline");
+        tv1.setTextColor(Color.WHITE); tv1.setTextSize(22);
+        tv1.setGravity(android.view.Gravity.CENTER);
+        Button retry = new Button(this); retry.setText("Retry");
+        retry.setBackgroundColor(Color.parseColor("#8c36ff"));
+        retry.setTextColor(Color.WHITE);
+        retry.setOnClickListener(v -> { if(isOnline()){offlineView.setVisibility(View.GONE);webView.setVisibility(View.VISIBLE);webView.reload();}});
+        offlineView.addView(tv1); offlineView.addView(retry);
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.BLACK);
+        webView.setAlpha(0f);
+        WebSettings s = webView.getSettings();
+        s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true);
+        s.setAllowFileAccess(true); s.setAllowContentAccess(true);
+        s.setLoadWithOverviewMode(true); s.setUseWideViewPort(true);
+        s.setBuiltInZoomControls(false); s.setSupportZoom(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setDatabaseEnabled(true);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        webView.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView v,String u){v.loadUrl(u);return true;}
+            @Override public void onPageFinished(WebView v,String u){v.animate().alpha(1f).setDuration(200).start();}
+            @Override public void onReceivedError(WebView v,int c,String d,String f){if(!isOnline()){webView.setVisibility(View.GONE);offlineView.setVisibility(View.VISIBLE);}}
+        });
+        webView.setWebChromeClient(new WebChromeClient());
+        if(isOnline()){ webView.loadUrl("${APP_URL}"); }
+        else{ webView.setVisibility(View.GONE); offlineView.setVisibility(View.VISIBLE); }
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+        root.addView(webView); root.addView(offlineView);
+        setContentView(root);
+    }
+    private boolean isOnline(){
+        ConnectivityManager cm=(ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo i=cm.getActiveNetworkInfo(); return i!=null&&i.isConnected();
+    }
+    @Override public void onBackPressed(){ if(webView.canGoBack())webView.goBack(); else super.onBackPressed(); }
+}
+JAVAEOF
 
           cat > gradle.properties << 'EOF'
-          android.useAndroidX=true
-          android.enableJetifier=true
-          org.gradle.jvmargs=-Xmx2048m
-          EOF
+android.useAndroidX=true
+android.enableJetifier=true
+org.gradle.jvmargs=-Xmx2048m
+EOF
 
-          cat > app/build.gradle << EOF
-          plugins {
-              id 'com.android.application'
-          }
-          android {
-              namespace "${PKG_NAME}"
-              compileSdk 34
-              defaultConfig {
-                  applicationId "${PKG_NAME}"
-                  minSdk 21
-                  targetSdk 34
-                  versionCode 1
-                  versionName "1.0"
-              }
-              buildTypes {
-                  debug { debuggable true }
-              }
-              bundle {
-                  language { enableSplit = false }
-                  density { enableSplit = false }
-                  abi { enableSplit = false }
-              }
-          }
-          dependencies {
-          }
-          EOF
+          cat > app/build.gradle << APPEOF
+plugins { id 'com.android.application' }
+android {
+    namespace "${PKG_NAME}"
+    compileSdk 34
+    defaultConfig {
+        applicationId "${PKG_NAME}"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes { debug { debuggable true } }
+    bundle {
+        language { enableSplit = false }
+        density { enableSplit = false }
+        abi { enableSplit = false }
+    }
+}
+dependencies {}
+APPEOF
 
           cat > settings.gradle << 'EOF'
-          pluginManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-                  gradlePluginPortal()
-              }
-          }
-          dependencyResolutionManagement {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-          }
-          rootProject.name = "Web2App"
-          include ':app'
-          EOF
+pluginManagement {
+    repositories { google(); mavenCentral(); gradlePluginPortal() }
+}
+dependencyResolutionManagement {
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = "Web2App"
+include ':app'
+EOF
 
           cat > build.gradle << 'EOF'
-          buildscript {
-              repositories {
-                  google()
-                  mavenCentral()
-              }
-              dependencies {
-                  classpath 'com.android.tools.build:gradle:8.1.4'
-              }
-          }
-          EOF
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
+}
+EOF
 
           cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
-          distributionBase=GRADLE_USER_HOME
-          distributionPath=wrapper/dists
-          distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
-          zipStoreBase=GRADLE_USER_HOME
-          zipStorePath=wrapper/dists
-          EOF
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
 
-          wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -O gradlew
+          # Use gradle wrapper generator instead of fragile wget
+          curl -fsSL "https://services.gradle.org/distributions/gradle-8.2-bin.zip" -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+          GRADLE_BIN=$(find /tmp/gradle-dist -name "gradle" -type f | head -1)
+          chmod +x "$GRADLE_BIN"
+          "$GRADLE_BIN" wrapper --gradle-version 8.2 --distribution-type bin
           chmod +x gradlew
-          wget -q "https://github.com/gradle/gradle/raw/v8.2.0/gradle/wrapper/gradle-wrapper.jar" \
-            -O gradle/wrapper/gradle-wrapper.jar
+          echo "Gradle wrapper ready"
 
       - name: Build APK and AAB
-        run: ./gradlew assembleDebug bundleDebug --no-daemon
-
-      - name: Upload APK and AAB to Supabase and mark complete
-        if: success()
         run: |
+          set -e
+          ./gradlew assembleDebug bundleDebug --no-daemon --stacktrace 2>&1
+
+      - name: Upload to Supabase and mark complete
+        if: success()
+        env:
+          JOB_ID: ${{ github.event.inputs.job_id }}
+          SUPA_URL: ${{ secrets.SUPABASE_URL }}
+          SUPA_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set -e
           APK_FILE=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -1)
           AAB_FILE=$(find app/build/outputs/bundle/debug/ -name "*.aab" | head -1)
-          APK_FILENAME="${{ github.event.inputs.job_id }}.apk"
-          AAB_FILENAME="${{ github.event.inputs.job_id }}.aab"
+          echo "APK: $APK_FILE  AAB: $AAB_FILE"
 
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/apk-builds/${APK_FILENAME}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sf -X POST "${SUPA_URL}/storage/v1/object/apk-builds/${JOB_ID}.apk" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
+            -H "apikey: ${SUPA_KEY}" \
             -H "Content-Type: application/vnd.android.package-archive" \
             --data-binary @"${APK_FILE}"
 
-          curl -s -X POST "${{ secrets.SUPABASE_URL }}/storage/v1/object/apk-builds/${AAB_FILENAME}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sf -X POST "${SUPA_URL}/storage/v1/object/apk-builds/${JOB_ID}.aab" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
+            -H "apikey: ${SUPA_KEY}" \
             -H "Content-Type: application/octet-stream" \
             --data-binary @"${AAB_FILE}"
 
-          DOWNLOAD_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/apk-builds/${APK_FILENAME}"
-          AAB_URL="${{ secrets.SUPABASE_URL }}/storage/v1/object/public/apk-builds/${AAB_FILENAME}"
-
-          curl -s -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/builds?id=eq.${{ github.event.inputs.job_id }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -sf -X PATCH "${SUPA_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
+            -H "apikey: ${SUPA_KEY}" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
             -H "Content-Type: application/json" \
-            -d "{\"status\":\"completed\",\"progress\":\"Done\",\"download_url\":\"${DOWNLOAD_URL}\",\"aab_url\":\"${AAB_URL}\"}"
+            -d "{\"status\":\"completed\",\"download_url\":\"${SUPA_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.apk\",\"aab_url\":\"${SUPA_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.aab\"}"
+
+          echo "Done!"
 
       - name: Mark build failed
         if: failure()
+        env:
+          JOB_ID: ${{ github.event.inputs.job_id }}
+          SUPA_URL: ${{ secrets.SUPABASE_URL }}
+          SUPA_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          curl -s -X PATCH "${{ secrets.SUPABASE_URL }}/rest/v1/builds?id=eq.${{ github.event.inputs.job_id }}" \
-            -H "apikey: ${{ secrets.SUPABASE_SERVICE_KEY }}" \
-            -H "Authorization: Bearer ${{ secrets.SUPABASE_SERVICE_KEY }}" \
+          curl -s -X PATCH "${SUPA_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
+            -H "apikey: ${SUPA_KEY}" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
             -H "Content-Type: application/json" \
-            -d '{"status":"failed","progress":"Build error","error":"Gradle build failed"}'
+            -d '{"status":"failed","error":"Build failed - check GitHub Actions logs for details"}'
+name: Build WebView APK
+
+on:
+  workflow_dispatch:
+    workflow_dispatch:
+      url:
+        description: 'Website URL'
+        required: true
+      app_name:
+        description: 'App Name'
+        required: true
+      job_id:
+        description: 'Job ID'
+        required: true
+      icon_path:
+        description: 'Icon Path'
+        required: false
+        default: ''
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Create Android Project
+        shell: bash
+        env:
+          APP_URL: ${{ github.event.inputs.url }}
+          APP_NAME: ${{ github.event.inputs.app_name }}
+          ICON_PATH: ${{ github.event.inputs.icon_path }}
+          SUPA_URL: ${{ secrets.SUPABASE_URL }}
+        run: |
+          set -e
+
+          PKG_SUFFIX=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
+          PKG_NAME="com.web2app.${PKG_SUFFIX}"
+          echo "Package: ${PKG_NAME}"
+
+          mkdir -p app/src/main/java/$(echo $PKG_NAME | tr '.' '/')
+          mkdir -p gradle/wrapper
+          mkdir -p app/src/main/res/{mipmap-hdpi,mipmap-mdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi,mipmap-anydpi-v26,drawable,values}
+
+          cat > app/src/main/res/values/styles.xml << 'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="android:Theme.Black">
+        <item name="android:windowBackground">@android:color/black</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">false</item>
+    </style>
+</resources>
+XML
+
+          ICON_ATTR=""
+          if [ -n "$ICON_PATH" ]; then
+            sudo apt-get install -q imagemagick -y
+            curl -sf "${SUPA_URL}/storage/v1/object/public/app-icons/${ICON_PATH}" -o /tmp/icon_orig.png || true
+            if [ -f /tmp/icon_orig.png ] && file /tmp/icon_orig.png | grep -q image; then
+              convert /tmp/icon_orig.png -resize 192x192! app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 144x144! app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 96x96!   app/src/main/res/mipmap-xhdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 72x72!   app/src/main/res/mipmap-hdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 48x48!   app/src/main/res/mipmap-mdpi/ic_launcher.png
+              convert /tmp/icon_orig.png -resize 432x432! app/src/main/res/drawable/ic_launcher_foreground.png
+              for dir in mipmap-xxxhdpi mipmap-xxhdpi mipmap-xhdpi mipmap-hdpi mipmap-mdpi; do
+                cp app/src/main/res/${dir}/ic_launcher.png app/src/main/res/${dir}/ic_launcher_round.png
+              done
+              cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'XML'
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/transparent"/>
+    <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+</adaptive-icon>
+XML
+              cp app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml \
+                 app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml
+              ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
+            fi
+          fi
+
+          JAVA_DIR="app/src/main/java/$(echo $PKG_NAME | tr '.' '/')"
+
+          # Write AndroidManifest
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' \
+            "<manifest xmlns:android=\"http://schemas.android.com/apk/res/android\" package=\"${PKG_NAME}\">" \
+            '    <uses-permission android:name="android.permission.INTERNET"/>' \
+            '    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>' \
+            "    <application android:allowBackup=\"true\" ${ICON_ATTR} android:theme=\"@style/AppTheme\" android:label=\"${APP_NAME}\" android:usesCleartextTraffic=\"true\">" \
+            '        <activity android:name=".MainActivity" android:configChanges="orientation|screenSize" android:exported="true">' \
+            '            <intent-filter>' \
+            '                <action android:name="android.intent.action.MAIN"/>' \
+            '                <category android:name="android.intent.category.LAUNCHER"/>' \
+            '            </intent-filter>' \
+            '        </activity>' \
+            '    </application>' \
+            '</manifest>' > app/src/main/AndroidManifest.xml
+
+          # Write MainActivity.java
+          cat > ${JAVA_DIR}/MainActivity.java << JAVAEOF
+package ${PKG_NAME};
+import android.app.Activity;
+import android.content.Context;
+import android.graphics.Color;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.Bundle;
+import android.view.View;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.LinearLayout;
+import android.widget.TextView;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
+import android.webkit.WebChromeClient;
+public class MainActivity extends Activity {
+    private WebView webView;
+    private LinearLayout offlineView;
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        requestWindowFeature(Window.FEATURE_NO_TITLE);
+        offlineView = new LinearLayout(this);
+        offlineView.setOrientation(LinearLayout.VERTICAL);
+        offlineView.setBackgroundColor(Color.parseColor("#0d0015"));
+        offlineView.setGravity(android.view.Gravity.CENTER);
+        offlineView.setPadding(60,60,60,60);
+        offlineView.setVisibility(View.GONE);
+        TextView tv1 = new TextView(this); tv1.setText("You are offline");
+        tv1.setTextColor(Color.WHITE); tv1.setTextSize(22);
+        tv1.setGravity(android.view.Gravity.CENTER);
+        Button retry = new Button(this); retry.setText("Retry");
+        retry.setBackgroundColor(Color.parseColor("#8c36ff"));
+        retry.setTextColor(Color.WHITE);
+        retry.setOnClickListener(v -> { if(isOnline()){offlineView.setVisibility(View.GONE);webView.setVisibility(View.VISIBLE);webView.reload();}});
+        offlineView.addView(tv1); offlineView.addView(retry);
+        webView = new WebView(this);
+        webView.setBackgroundColor(Color.BLACK);
+        webView.setAlpha(0f);
+        WebSettings s = webView.getSettings();
+        s.setJavaScriptEnabled(true); s.setDomStorageEnabled(true);
+        s.setAllowFileAccess(true); s.setAllowContentAccess(true);
+        s.setLoadWithOverviewMode(true); s.setUseWideViewPort(true);
+        s.setBuiltInZoomControls(false); s.setSupportZoom(false);
+        s.setMixedContentMode(WebSettings.MIXED_CONTENT_ALWAYS_ALLOW);
+        s.setUserAgentString("Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36");
+        s.setMediaPlaybackRequiresUserGesture(false);
+        s.setDatabaseEnabled(true);
+        s.setCacheMode(WebSettings.LOAD_DEFAULT);
+        webView.setWebViewClient(new WebViewClient(){
+            @Override public boolean shouldOverrideUrlLoading(WebView v,String u){v.loadUrl(u);return true;}
+            @Override public void onPageFinished(WebView v,String u){v.animate().alpha(1f).setDuration(200).start();}
+            @Override public void onReceivedError(WebView v,int c,String d,String f){if(!isOnline()){webView.setVisibility(View.GONE);offlineView.setVisibility(View.VISIBLE);}}
+        });
+        webView.setWebChromeClient(new WebChromeClient());
+        if(isOnline()){ webView.loadUrl("${APP_URL}"); }
+        else{ webView.setVisibility(View.GONE); offlineView.setVisibility(View.VISIBLE); }
+        android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+        root.addView(webView); root.addView(offlineView);
+        setContentView(root);
+    }
+    private boolean isOnline(){
+        ConnectivityManager cm=(ConnectivityManager)getSystemService(Context.CONNECTIVITY_SERVICE);
+        NetworkInfo i=cm.getActiveNetworkInfo(); return i!=null&&i.isConnected();
+    }
+    @Override public void onBackPressed(){ if(webView.canGoBack())webView.goBack(); else super.onBackPressed(); }
+}
+JAVAEOF
+
+          cat > gradle.properties << 'EOF'
+android.useAndroidX=true
+android.enableJetifier=true
+org.gradle.jvmargs=-Xmx2048m
+EOF
+
+          cat > app/build.gradle << APPEOF
+plugins { id 'com.android.application' }
+android {
+    namespace "${PKG_NAME}"
+    compileSdk 34
+    defaultConfig {
+        applicationId "${PKG_NAME}"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    buildTypes { debug { debuggable true } }
+    bundle {
+        language { enableSplit = false }
+        density { enableSplit = false }
+        abi { enableSplit = false }
+    }
+}
+dependencies {}
+APPEOF
+
+          cat > settings.gradle << 'EOF'
+pluginManagement {
+    repositories { google(); mavenCentral(); gradlePluginPortal() }
+}
+dependencyResolutionManagement {
+    repositories { google(); mavenCentral() }
+}
+rootProject.name = "Web2App"
+include ':app'
+EOF
+
+          cat > build.gradle << 'EOF'
+buildscript {
+    repositories { google(); mavenCentral() }
+    dependencies { classpath 'com.android.tools.build:gradle:8.1.4' }
+}
+EOF
+
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+distributionBase=GRADLE_USER_HOME
+distributionPath=wrapper/dists
+distributionUrl=https\://services.gradle.org/distributions/gradle-8.2-bin.zip
+zipStoreBase=GRADLE_USER_HOME
+zipStorePath=wrapper/dists
+EOF
+
+          # Use gradle wrapper generator instead of fragile wget
+          curl -fsSL "https://services.gradle.org/distributions/gradle-8.2-bin.zip" -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /tmp/gradle-dist
+          GRADLE_BIN=$(find /tmp/gradle-dist -name "gradle" -type f | head -1)
+          chmod +x "$GRADLE_BIN"
+          "$GRADLE_BIN" wrapper --gradle-version 8.2 --distribution-type bin
+          chmod +x gradlew
+          echo "Gradle wrapper ready"
+
+      - name: Build APK and AAB
+        run: |
+          set -e
+          ./gradlew assembleDebug bundleDebug --no-daemon --stacktrace 2>&1
+
+      - name: Upload to Supabase and mark complete
+        if: success()
+        env:
+          JOB_ID: ${{ github.event.inputs.job_id }}
+          SUPA_URL: ${{ secrets.SUPABASE_URL }}
+          SUPA_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          set -e
+          APK_FILE=$(find app/build/outputs/apk/debug/ -name "*.apk" | head -1)
+          AAB_FILE=$(find app/build/outputs/bundle/debug/ -name "*.aab" | head -1)
+          echo "APK: $APK_FILE  AAB: $AAB_FILE"
+
+          curl -sf -X POST "${SUPA_URL}/storage/v1/object/apk-builds/${JOB_ID}.apk" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
+            -H "apikey: ${SUPA_KEY}" \
+            -H "Content-Type: application/vnd.android.package-archive" \
+            --data-binary @"${APK_FILE}"
+
+          curl -sf -X POST "${SUPA_URL}/storage/v1/object/apk-builds/${JOB_ID}.aab" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
+            -H "apikey: ${SUPA_KEY}" \
+            -H "Content-Type: application/octet-stream" \
+            --data-binary @"${AAB_FILE}"
+
+          curl -sf -X PATCH "${SUPA_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
+            -H "apikey: ${SUPA_KEY}" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"status\":\"completed\",\"download_url\":\"${SUPA_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.apk\",\"aab_url\":\"${SUPA_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.aab\"}"
+
+          echo "Done!"
+
+      - name: Mark build failed
+        if: failure()
+        env:
+          JOB_ID: ${{ github.event.inputs.job_id }}
+          SUPA_URL: ${{ secrets.SUPABASE_URL }}
+          SUPA_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+        run: |
+          curl -s -X PATCH "${SUPA_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
+            -H "apikey: ${SUPA_KEY}" \
+            -H "Authorization: Bearer ${SUPA_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"status":"failed","error":"Build failed - check GitHub Actions logs for details"}'
