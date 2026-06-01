@@ -28,17 +28,17 @@
       margin: 0 auto;
       padding: 20px;
     }
-    .header { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 24px; padding-top: 12px; gap: 12px; }
+    /* header handled */
     .logo {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 34px;
+      font-size: 28px;
       font-weight: 700;
       color: #8c36ff;
       text-decoration: none;
     }
     .nav-icons {
       display: flex;
-      gap: 22px;
+      gap: 18px;
     }
     .nav-icon {
       color: rgba(255,255,255,0.6);
@@ -133,22 +133,26 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast.err { background: rgba(180,40,40,0.95); border-color: #ff4444; }
     .toast.ok { background: rgba(0,120,80,0.95); border-color: #00cc88; }
+  
+    .header { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 0 0; margin-bottom: 20px; gap: 10px; }
+    .devra-logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-shadow: 0 0 24px rgba(140,54,255,0.5); letter-spacing: -1px; line-height: 1; }
+    .nav-row { display: flex; gap: 20px; align-items: center; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; transition: color 0.2s; }
+    .nav-item i { font-size: 18px; }
+    .nav-item:hover, .nav-item.active { color: #8c36ff; }
+    .publish-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #25D366; color: white; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,211,102,0.35); transition: all 0.2s; }
+    .publish-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,211,102,0.5); }
+
   </style>
 </head>
 <body>
 <div class="bg"></div>
 <div class="page">
   <div class="header">
-    <a href="builder.html" class="logo">Devra</a>
-    <div class="nav-icons">
-      <i class="fas fa-globe nav-icon" onclick="location.href='sites.html'"></i>
-      <i class="fas fa-history nav-icon" onclick="location.href='builds.html'"></i>
-      <i class="fas fa-user nav-icon" onclick="location.href='account.html'"></i>
-      <i class="fas fa-sign-out-alt nav-icon" onclick="logout()"></i>
-    </div>
-  </div>
-
-  <div class="card">
+  <div class="devra-logo">Devra</div>
+  <div class="nav-row"><a class="nav-item " onclick="location.href='builder.html'"><i class="fas fa-hammer"></i><span>Builder</span></a><a class="nav-item " onclick="location.href='builds.html'"><i class="fas fa-layer-group"></i><span>Builds</span></a><a class="nav-item " onclick="location.href='account.html'"><i class="fas fa-user"></i><span>Account</span></a></div>
+</div>
+<div class="card">
     <div class="card-title">
       <span><i class="fas fa-bell" style="color:#8c36ff"></i> Notifications</span>
       <span class="mark-all" onclick="markAllRead()">Mark all as read</span>
@@ -174,20 +178,14 @@
   async function checkAuth() {
     let { data: { session } } = await _supabase.auth.getSession();
     if (!session) {
-      // Wait for auth state in case token is refreshing
       await new Promise(resolve => {
         const { data: { subscription } } = _supabase.auth.onAuthStateChange((event, sess) => {
-          subscription.unsubscribe();
-          session = sess;
-          resolve();
+          subscription.unsubscribe(); session = sess; resolve();
         });
         setTimeout(resolve, 2000);
       });
     }
-    if (!session || !session.user) {
-      window.location.href = 'index.html';
-      return;
-    }
+    if (!session || !session.user) { window.location.href = 'index.html'; return; }
     currentUser = session.user;
     await loadNotifications();
     

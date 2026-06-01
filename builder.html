@@ -53,17 +53,17 @@
     }
 
     /* Header */
-    .header { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 24px; padding-top: 12px; gap: 12px; }
+    /* header handled */
     .logo {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 34px;
+      font-size: 28px;
       font-weight: 700;
       color: #8c36ff;
       text-decoration: none;
     }
     .nav-icons {
       display: flex;
-      gap: 22px;
+      gap: 18px;
     }
     .nav-icon {
       color: rgba(255,255,255,0.6);
@@ -339,6 +339,16 @@
       .page { padding: 16px; }
       .card { padding: 18px; }
     }
+  
+    .header { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 0 0; margin-bottom: 20px; gap: 10px; }
+    .devra-logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-shadow: 0 0 24px rgba(140,54,255,0.5); letter-spacing: -1px; line-height: 1; }
+    .nav-row { display: flex; gap: 20px; align-items: center; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; transition: color 0.2s; }
+    .nav-item i { font-size: 18px; }
+    .nav-item:hover, .nav-item.active { color: #8c36ff; }
+    .publish-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #25D366; color: white; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,211,102,0.35); transition: all 0.2s; }
+    .publish-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,211,102,0.5); }
+
   </style>
 </head>
 <body>
@@ -347,64 +357,52 @@
 <div class="page">
   <!-- Header -->
   <div class="header">
-    <a href="builder.html" class="logo">Devra</a>
-    <div class="nav-icons">
-      <div class="nav-icon-wrap active" onclick="location.href='builder.html'">
-        <i class="fas fa-mobile-alt nav-icon"></i><span class="nav-icon-label">Builder</span>
-      </div>
-      <div class="nav-icon-wrap" onclick="location.href='sites.html'">
-        <i class="fas fa-globe nav-icon"></i><span class="nav-icon-label">Sites</span>
-      </div>
-      <div class="nav-icon-wrap" onclick="location.href='builds.html'">
-        <i class="fas fa-history nav-icon"></i><span class="nav-icon-label">Builds</span>
-      </div>
-      <div class="nav-icon-wrap" onclick="location.href='account.html'">
-        <i class="fas fa-user nav-icon"></i><span class="nav-icon-label">Account</span>
-      </div>
-      <div class="nav-icon-wrap" onclick="logout()">
-        <i class="fas fa-sign-out-alt nav-icon"></i><span class="nav-icon-label">Logout</span>
-      </div>
-    </div>
-  </div>
+  <div class="devra-logo">Devra</div>
+  <div class="nav-row"><a class="nav-item active" onclick="location.href='builder.html'"><i class="fas fa-hammer"></i><span>Builder</span></a><a class="nav-item " onclick="location.href='builds.html'"><i class="fas fa-layer-group"></i><span>Builds</span></a><a class="nav-item " onclick="location.href='account.html'"><i class="fas fa-user"></i><span>Account</span></a></div>
+    <a href="https://wa.me/2349067004423?text=Hi%20Devra%2C%20I%20want%20to%20publish%20my%20app%20to%20the%20Play%20Store" target="_blank" class="publish-btn">
+      🚀 Publish my app to Play Store
+    </a>
+</div>
 
-  <!-- Builder Card -->
+  <!-- Builder Form Card -->
   <div class="card">
-    <div class="card-title">
-      <i class="fas fa-mobile-alt" style="color:#8c36ff"></i>
-      Build APK & AAB
-    </div>
-    <div class="card-sub">Turn any website into an Android app with custom icon</div>
+    <div class="card-title">🛠️ Build Your App</div>
+    <div class="card-sub">Enter your website URL to convert it into an Android APK + AAB</div>
 
-    <input type="url" id="siteUrl" placeholder="Website URL (https://...)">
-    <input type="text" id="appName" placeholder="App Name">
-
-    <div class="icon-preview empty" onclick="document.getElementById('iconInput').click()" id="iconPreview">
-      📷 Tap to add app icon (512x512px recommended)
+    <div style="margin-bottom:12px">
+      <input id="siteUrl" type="url" placeholder="https://yourwebsite.com">
     </div>
-    <input type="file" id="iconInput" accept="image/png,image/jpeg,image/webp">
+    <div style="margin-bottom:12px">
+      <input id="appName" type="text" placeholder="App Name (e.g. My Awesome App)">
+    </div>
+
+    <div class="icon-preview empty" id="iconPreview" onclick="document.getElementById('iconInput').click()">
+      <i class="fas fa-image" style="font-size:28px; margin-bottom:8px; display:block"></i>
+      <span>Tap to upload app icon (optional)</span>
+    </div>
+    <input type="file" id="iconInput" accept="image/*">
 
     <button class="btn" id="buildBtn" onclick="startBuild()">🚀 Build APK + AAB</button>
 
-    <div id="buildProgress" style="display:none;">
+    <div id="buildProgress" style="display:none; margin-top:16px">
       <div class="progress-container">
         <div class="progress-fill" id="progressFill"></div>
       </div>
-      <div class="status-message" id="statusMsg">⏳ Starting build...</div>
+      <div class="status-message" id="statusMsg"></div>
     </div>
   </div>
 
-  <!-- Recent Builds Card -->
+  <!-- Recent Builds -->
   <div class="card">
-    <div class="card-title">
-      <i class="fas fa-clock" style="color:#8c36ff"></i>
-      Recent Builds
-    </div>
+    <div class="card-title">📦 Recent Builds</div>
     <div id="recentBuildsList">
       <div style="text-align:center; padding:20px; color:rgba(255,255,255,0.4)">
         <i class="fas fa-spinner fa-pulse"></i> Loading...
       </div>
     </div>
   </div>
+
+</div>
 </div>
 
 <div class="toast" id="toast"></div>
@@ -424,26 +422,21 @@
   async function checkAuth() {
     let { data: { session } } = await _supabase.auth.getSession();
     if (!session) {
-      // Wait for auth state in case token is refreshing
       await new Promise(resolve => {
         const { data: { subscription } } = _supabase.auth.onAuthStateChange((event, sess) => {
-          subscription.unsubscribe();
-          session = sess;
-          resolve();
+          subscription.unsubscribe(); session = sess; resolve();
         });
         setTimeout(resolve, 2000);
       });
     }
-    if (!session || !session.user) {
-      window.location.href = 'index.html';
-      return;
-    }
+    if (!session || !session.user) { window.location.href = 'index.html'; return; }
     currentUser = session.user;
     await loadRecentBuilds();
   }
 
   // Icon upload
-  document.getElementById('iconInput').addEventListener('change', function(e) {
+  const iconInputEl = document.getElementById('iconInput');
+  if (iconInputEl) iconInputEl.addEventListener('change', function(e) {
     const file = e.target.files[0];
     if (file && file.type.startsWith('image/')) {
       const reader = new FileReader();
@@ -551,12 +544,15 @@
         if (pollInterval) clearInterval(pollInterval);
         document.getElementById('progressFill').style.width = '100%';
         document.getElementById('statusMsg').innerHTML = `
-          <div style="margin-top:12px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
-            <a href="${result.download_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:#8c36ff;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📥 Download APK</a>
-            ${result.aab_url ? '<a href="'+result.aab_url+'" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:rgba(67,232,160,0.15);border:1px solid rgba(67,232,160,0.4);color:#43e8a0;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📦 Download AAB</a>' : ''}
+          <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;align-items:center;">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
+              <a href="${result.download_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:#8c36ff;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📥 Download APK</a>
+              ${result.aab_url ? '<a href="'+result.aab_url+'" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:rgba(67,232,160,0.15);border:1px solid rgba(67,232,160,0.4);color:#43e8a0;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📦 Download AAB</a>' : ''}
+            </div>
+            <a href="https://wa.me/2349067004423?text=Hi%20Devra%2C%20I%20want%20to%20publish%20my%20app%20to%20the%20Play%20Store" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#25D366;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">
+              🚀 Publish to Play Store — &#8358;5,000
+            </a>
           </div>`;
-        
-        // Update database with both urls
         await _supabase.from('builds').update({
           status: 'completed',
           download_url: result.download_url,
@@ -569,7 +565,9 @@
         toast('Build completed successfully!', 'ok');
         await loadRecentBuilds();
         
-        // Keep download links visible
+        setTimeout(() => {
+          document.getElementById('buildProgress').style.display = 'none';
+        }, 3000);
         
       } else if (result.status === 'failed') {
         if (pollInterval) clearInterval(pollInterval);

@@ -28,17 +28,17 @@
       margin: 0 auto;
       padding: 20px;
     }
-    .header { display: flex; flex-direction: column; align-items: flex-start; margin-bottom: 24px; padding-top: 12px; gap: 12px; }
+    /* header handled */
     .logo {
       font-family: 'Space Grotesk', sans-serif;
-      font-size: 34px;
+      font-size: 28px;
       font-weight: 700;
       color: #8c36ff;
       text-decoration: none;
     }
     .nav-icons {
       display: flex;
-      gap: 22px;
+      gap: 18px;
     }
     .nav-icon {
       color: rgba(255,255,255,0.6);
@@ -102,40 +102,9 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 0;
+      margin: 0 auto 12px;
       font-size: 40px;
       font-weight: bold;
-      position: relative;
-      cursor: pointer;
-      overflow: hidden;
-      transition: all 0.2s;
-    }
-    .avatar:hover .avatar-overlay { opacity: 1; }
-    .avatar img {
-      width: 100%; height: 100%;
-      object-fit: cover;
-      border-radius: 50%;
-      position: absolute; inset: 0;
-    }
-    .avatar-overlay {
-      position: absolute; inset: 0;
-      background: rgba(0,0,0,0.55);
-      border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      opacity: 0; transition: opacity 0.2s;
-      font-size: 22px;
-    }
-    .avatar-change-btn {
-      margin-top: 10px;
-      display: inline-block;
-      font-size: 12px; font-weight: 700;
-      color: #c7b2ff; cursor: pointer;
-      letter-spacing: 0.3px;
-    }
-    .avatar-change-btn:hover { color: #8c36ff; }
-    .avatar-uploading {
-      font-size: 11px; color: rgba(255,255,255,0.5);
-      margin-top: 6px; display: none;
     }
     input, select {
       width: 100%;
@@ -225,46 +194,33 @@
       margin-right: 6px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+  
+    .header { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 0 0; margin-bottom: 20px; gap: 10px; }
+    .devra-logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-shadow: 0 0 24px rgba(140,54,255,0.5); letter-spacing: -1px; line-height: 1; }
+    .nav-row { display: flex; gap: 20px; align-items: center; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; transition: color 0.2s; }
+    .nav-item i { font-size: 18px; }
+    .nav-item:hover, .nav-item.active { color: #8c36ff; }
+    .publish-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #25D366; color: white; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,211,102,0.35); transition: all 0.2s; }
+    .publish-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,211,102,0.5); }
+
   </style>
 </head>
 <body>
 <div class="bg"></div>
 <div class="page">
   <div class="header">
-    <a href="builder.html" class="logo">Devra</a>
-    <div class="nav-icons">
-      <div class="nav-icon-wrap" onclick="location.href='builder.html'">
-        <i class="fas fa-mobile-alt nav-icon"></i><span class="nav-icon-label">Builder</span>
-      </div>
-      <div class="nav-icon-wrap" onclick="location.href='sites.html'">
-        <i class="fas fa-globe nav-icon"></i><span class="nav-icon-label">Sites</span>
-      </div>
-      <div class="nav-icon-wrap" onclick="location.href='builds.html'">
-        <i class="fas fa-history nav-icon"></i><span class="nav-icon-label">Builds</span>
-      </div>
-      <div class="nav-icon-wrap active" onclick="location.href='account.html'">
-        <i class="fas fa-user nav-icon"></i><span class="nav-icon-label">Account</span>
-      </div>
-      <div class="nav-icon-wrap" onclick="logout()">
-        <i class="fas fa-sign-out-alt nav-icon"></i><span class="nav-icon-label">Logout</span>
-      </div>
-    </div>
-  </div>
-
-  <div class="card">
+  <div class="devra-logo">Devra</div>
+  <div class="nav-row"><a class="nav-item " onclick="location.href='builder.html'"><i class="fas fa-hammer"></i><span>Builder</span></a><a class="nav-item " onclick="location.href='builds.html'"><i class="fas fa-layer-group"></i><span>Builds</span></a><a class="nav-item active" onclick="location.href='account.html'"><i class="fas fa-user"></i><span>Account</span></a></div>
+</div>
+<div class="card">
     <div class="card-title">
       <i class="fas fa-user-circle" style="color:#8c36ff"></i>
       Profile Information
     </div>
     
     <div class="avatar-section">
-      <div class="avatar" id="avatarEl" onclick="document.getElementById('avatarInput').click()">
-        <span id="avatarInitials">JD</span>
-        <div class="avatar-overlay">📷</div>
-      </div>
-      <input type="file" id="avatarInput" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)">
-      <div class="avatar-change-btn" onclick="document.getElementById('avatarInput').click()">Change Photo</div>
-      <div class="avatar-uploading" id="avatarUploading">⏳ Uploading...</div>
+      <div class="avatar" id="avatarInitials">JD</div>
       <div id="adminBadge"></div>
     </div>
 
@@ -332,9 +288,7 @@
     if (!session) {
       await new Promise(resolve => {
         const { data: { subscription } } = _supabase.auth.onAuthStateChange((event, sess) => {
-          subscription.unsubscribe();
-          session = sess;
-          resolve();
+          subscription.unsubscribe(); session = sess; resolve();
         });
         setTimeout(resolve, 2000);
       });
@@ -345,89 +299,37 @@
   }
 
   async function loadProfile() {
-    if (!currentUser) return;
-    const u = currentUser;
-
-    // Show auth data immediately
-    document.getElementById('profileEmail').innerText = u.email || '-';
-    document.getElementById('profileJoined').innerText = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
-    document.getElementById('profileRole').innerText = 'User';
-    const fallbackInitials = (u.user_metadata?.full_name || u.email || 'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
-    document.getElementById('avatarInitials').innerText = fallbackInitials;
-    if (u.user_metadata?.full_name) document.getElementById('fullName').value = u.user_metadata.full_name;
-
-    // Load from profiles table
     const { data: profile, error } = await _supabase
       .from('profiles')
       .select('*')
-      .eq('id', u.id)
+      .eq('id', currentUser.id)
       .single();
 
     if (error || !profile) {
-      await _supabase.from('profiles').upsert({ id: u.id, email: u.email, full_name: u.user_metadata?.full_name || '', role: 'user' });
+      // Fallback to auth user data if profile table missing
+      const u = currentUser;
+      document.getElementById('profileEmail').innerText = u.email || '-';
+      document.getElementById('profileJoined').innerText = u.created_at ? new Date(u.created_at).toLocaleDateString() : '-';
+      document.getElementById('profileRole').innerText = 'User';
+      const initials = (u.email || 'U').substring(0, 2).toUpperCase();
+      document.getElementById('avatarInitials').innerText = initials;
       return;
     }
 
     userProfile = profile;
-    document.getElementById('profileEmail').innerText = profile.email || u.email;
-    document.getElementById('profileJoined').innerText = new Date(profile.created_at || u.created_at).toLocaleDateString();
-    document.getElementById('profileRole').innerHTML = profile.role === 'admin' ? '<span class="admin-badge">👑 Admin</span>' : (profile.role || 'User');
+    
+    document.getElementById('profileEmail').innerText = profile.email;
+    document.getElementById('profileJoined').innerText = new Date(profile.created_at).toLocaleDateString();
+    document.getElementById('profileRole').innerHTML = profile.role === 'admin' ? '<span class="admin-badge">👑 Admin</span>' : profile.role;
     document.getElementById('fullName').value = profile.full_name || '';
-
-    const initials = (profile.full_name || profile.email || u.email || 'U').split(' ').map(n=>n[0]).join('').substring(0,2).toUpperCase();
+    
+    // Avatar initials
+    const initials = (profile.full_name || profile.email).split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     document.getElementById('avatarInitials').innerText = initials;
-
-    // Show avatar image if exists
-    if (profile.avatar_url) {
-      setAvatarImage(profile.avatar_url);
-    }
-
+    
     if (profile.role === 'admin') {
       document.getElementById('adminBadge').innerHTML = '<span class="admin-badge" style="margin-top:8px">👑 Administrator Access</span>';
     }
-  }
-
-  function setAvatarImage(url) {
-    const el = document.getElementById('avatarEl');
-    // Remove existing img if any
-    const existing = el.querySelector('img');
-    if (existing) existing.remove();
-    document.getElementById('avatarInitials').style.display = 'none';
-    const img = document.createElement('img');
-    img.src = url;
-    img.onerror = () => { img.remove(); document.getElementById('avatarInitials').style.display = ''; };
-    el.insertBefore(img, el.firstChild);
-  }
-
-  async function uploadAvatar(input) {
-    const file = input.files[0];
-    if (!file || !currentUser) return;
-    if (file.size > 2 * 1024 * 1024) { toast('Image must be under 2MB', 'err'); return; }
-
-    document.getElementById('avatarUploading').style.display = 'block';
-
-    // Convert to base64 preview instantly
-    const reader = new FileReader();
-    reader.onload = e => setAvatarImage(e.target.result);
-    reader.readAsDataURL(file);
-
-    // Upload to Supabase Storage
-    const ext = file.name.split('.').pop();
-    const path = `avatars/${currentUser.id}.${ext}`;
-    const { error: uploadErr } = await _supabase.storage.from('avatars').upload(path, file, { upsert: true, contentType: file.type });
-
-    if (uploadErr) {
-      toast('Upload failed: ' + uploadErr.message, 'err');
-      document.getElementById('avatarUploading').style.display = 'none';
-      return;
-    }
-
-    const { data: { publicUrl } } = _supabase.storage.from('avatars').getPublicUrl(path);
-
-    // Save to profile
-    await _supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', currentUser.id);
-    document.getElementById('avatarUploading').style.display = 'none';
-    toast('Profile photo updated!', 'ok');
   }
 
   function toast(msg, type = '') {
