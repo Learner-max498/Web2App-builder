@@ -199,8 +199,14 @@
       height: 100%;
       background: linear-gradient(90deg, #8c36ff, #c084fc);
       border-radius: 30px;
-      transition: width 0.3s ease;
+      transition: width 0.4s ease;
     }
+    .progress-fill.active {
+      background: linear-gradient(90deg, #8c36ff, #c084fc, #8c36ff);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s linear infinite;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
     .status-message {
       text-align: center;
       font-size: 13px;
@@ -476,6 +482,7 @@
 
     document.getElementById('buildProgress').style.display = 'block';
     document.getElementById('progressFill').style.width = '10%';
+    document.getElementById('statusMsg').style.color = '';
     document.getElementById('statusMsg').innerHTML = '⏳ Submitting build request...';
 
     try {
@@ -494,14 +501,19 @@
         body: JSON.stringify(payload)
       });
 
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || `Server error ${response.status}`);
+      }
+
       const result = await response.json();
 
-      if (!response.ok) {
-        throw new Error(result.error || 'Build request failed');
+      if (!result.job_id) {
+        throw new Error('No job ID returned from server. Please try again.');
       }
 
       currentBuildJobId = result.job_id;
-      
+
       // Save build to database
       await _supabase.from('builds').insert({
         id: currentBuildJobId,
@@ -512,11 +524,17 @@
       });
 
       document.getElementById('progressFill').style.width = '30%';
-      document.getElementById('statusMsg').innerHTML = '⏳ Building... (2-3 minutes)';
+      document.getElementById('progressFill').classList.add('active');
+      document.getElementById('statusMsg').innerHTML = `
+        ⏳ Building... (2–3 minutes)
+        <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.35)">Job: ${currentBuildJobId}</div>
+        <div style="margin-top:10px">
+          <button onclick="cancelBuild()" style="background:rgba(255,68,68,0.15);border:1px solid rgba(255,68,68,0.3);color:#ff4444;padding:6px 16px;border-radius:8px;font-size:12px;cursor:pointer;">✕ Cancel</button>
+        </div>`;
 
-      // Start polling
+      // Start polling DB directly
       if (pollInterval) clearInterval(pollInterval);
-      pollInterval = setInterval(() => pollBuildStatus(currentBuildJobId), 5000);
+      pollInterval = setInterval(() => pollBuildStatus(currentBuildJobId), 6000);
 
     } catch (err) {
       toast('Error: ' + err.message, 'err');
@@ -525,6 +543,19 @@
       document.getElementById('buildProgress').style.display = 'none';
     }
   }
+
+  async function cancelBuild() {
+    if (!currentBuildJobId) return;
+    if (pollInterval) { clearInterval(pollInterval); pollInterval = null; }
+    await _supabase.from('builds').update({ status: 'failed', error: 'Cancelled by user' }).eq('id', currentBuildJobId);
+    currentBuildJobId = null;
+    document.getElementById('buildProgress').style.display = 'none';
+    document.getElementById('buildBtn').disabled = false;
+    document.getElementById('buildBtn').textContent = '🚀 Build APK + AAB';
+    toast('Build cancelled', '');
+    await loadRecentBuilds();
+  }
+  window.cancelBuild = cancelBuild;
 
   async function pollBuildStatus(jobId) {
     try {
@@ -554,6 +585,7 @@
       if (data.status === 'completed') {
         if (pollInterval) clearInterval(pollInterval);
         document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('progressFill').classList.remove('active');
         document.getElementById('statusMsg').innerHTML = `
           <div style="margin-top:12px;display:flex;flex-direction:column;gap:10px;align-items:center;">
             <div style="display:flex;gap:10px;flex-wrap:wrap;justify-content:center;">
