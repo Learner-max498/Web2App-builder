@@ -33,7 +33,6 @@ jobs:
 
       - name: Create Android Project
         run: |
-          # Generate safe unique package name
           PKG_SUFFIX=$(echo "${{ github.event.inputs.app_name }}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
           PKG_NAME="com.web2app.${PKG_SUFFIX}"
           echo "Package name: ${PKG_NAME}"
@@ -45,9 +44,10 @@ jobs:
           mkdir -p app/src/main/res/mipmap-xhdpi/
           mkdir -p app/src/main/res/mipmap-xxhdpi/
           mkdir -p app/src/main/res/mipmap-xxxhdpi/
+          mkdir -p app/src/main/res/mipmap-anydpi-v26/
+          mkdir -p app/src/main/res/drawable/
           mkdir -p app/src/main/res/values/
 
-          # Create black theme to remove white splash/border
           cat > app/src/main/res/values/styles.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
@@ -59,7 +59,6 @@ jobs:
           </resources>
           EOF
 
-          # Handle custom icon
           ICON_PATH="${{ github.event.inputs.icon_path }}"
           if [ -n "$ICON_PATH" ]; then
             sudo apt-get install -q imagemagick -y
@@ -67,17 +66,52 @@ jobs:
             curl -s "${{ secrets.SUPABASE_URL }}/storage/v1/object/public/app-icons/${ICON_PATH}" \
               -o /tmp/icon_orig.png
 
+            # Create regular icons (no padding - full bleed)
             convert /tmp/icon_orig.png -resize 192x192! app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
             convert /tmp/icon_orig.png -resize 144x144! app/src/main/res/mipmap-xxhdpi/ic_launcher.png
             convert /tmp/icon_orig.png -resize 96x96!   app/src/main/res/mipmap-xhdpi/ic_launcher.png
             convert /tmp/icon_orig.png -resize 72x72!   app/src/main/res/mipmap-hdpi/ic_launcher.png
             convert /tmp/icon_orig.png -resize 48x48!   app/src/main/res/mipmap-mdpi/ic_launcher.png
 
-            cp app/src/main/res/mipmap-xxxhdpi/ic_launcher.png app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-xxhdpi/ic_launcher.png  app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-xhdpi/ic_launcher.png   app/src/main/res/mipmap-xhdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-hdpi/ic_launcher.png    app/src/main/res/mipmap-hdpi/ic_launcher_round.png
-            cp app/src/main/res/mipmap-mdpi/ic_launcher.png    app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+            # Create round icons (circle crop, no border)
+            for size in 192 144 96 72 48; do
+              case $size in
+                192) dir="mipmap-xxxhdpi" ;;
+                144) dir="mipmap-xxhdpi" ;;
+                96)  dir="mipmap-xhdpi" ;;
+                72)  dir="mipmap-hdpi" ;;
+                48)  dir="mipmap-mdpi" ;;
+              esac
+              convert /tmp/icon_orig.png -resize ${size}x${size}! \
+                \( +clone -alpha extract \
+                   -draw "fill black polygon 0,0 0,${size} ${size},${size} ${size},0 fill white circle $((size/2)),$((size/2)) $((size/2)),0" \
+                   \( +clone -flip \) -compose Multiply -composite \
+                   \( +clone -flop \) -compose Multiply -composite \
+                \) -alpha off -compose CopyOpacity -composite \
+                app/src/main/res/${dir}/ic_launcher_round.png 2>/dev/null || \
+              cp app/src/main/res/${dir}/ic_launcher.png app/src/main/res/${dir}/ic_launcher_round.png
+            done
+
+            # Create adaptive icon foreground (108x108dp = 432x432 at xxxhdpi)
+            # The foreground should fill the full 108dp with NO extra padding
+            convert /tmp/icon_orig.png -resize 432x432! app/src/main/res/drawable/ic_launcher_foreground.png
+
+            # Adaptive icon XML - transparent background so no white border
+            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml << 'EOF'
+            <?xml version="1.0" encoding="utf-8"?>
+            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+                <background android:drawable="@android:color/transparent"/>
+                <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+            </adaptive-icon>
+            EOF
+
+            cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher_round.xml << 'EOF'
+            <?xml version="1.0" encoding="utf-8"?>
+            <adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+                <background android:drawable="@android:color/transparent"/>
+                <foreground android:drawable="@drawable/ic_launcher_foreground"/>
+            </adaptive-icon>
+            EOF
 
             ICON_ATTR='android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"'
           else
@@ -113,9 +147,16 @@ jobs:
           package ${PKG_NAME};
 
           import android.app.Activity;
+          import android.content.Context;
           import android.graphics.Color;
+          import android.net.ConnectivityManager;
+          import android.net.NetworkInfo;
           import android.os.Bundle;
+          import android.view.View;
           import android.view.Window;
+          import android.widget.Button;
+          import android.widget.LinearLayout;
+          import android.widget.TextView;
           import android.webkit.WebView;
           import android.webkit.WebViewClient;
           import android.webkit.WebSettings;
@@ -123,11 +164,57 @@ jobs:
 
           public class MainActivity extends Activity {
               private WebView webView;
+              private LinearLayout offlineView;
 
               @Override
               protected void onCreate(Bundle savedInstanceState) {
                   super.onCreate(savedInstanceState);
                   requestWindowFeature(Window.FEATURE_NO_TITLE);
+
+                  // Offline view
+                  offlineView = new LinearLayout(this);
+                  offlineView.setOrientation(LinearLayout.VERTICAL);
+                  offlineView.setBackgroundColor(Color.parseColor("#0d0015"));
+                  offlineView.setGravity(android.view.Gravity.CENTER);
+                  offlineView.setPadding(60, 60, 60, 60);
+
+                  TextView emoji = new TextView(this);
+                  emoji.setText("📡");
+                  emoji.setTextSize(48);
+                  emoji.setGravity(android.view.Gravity.CENTER);
+
+                  TextView title = new TextView(this);
+                  title.setText("You're offline");
+                  title.setTextColor(Color.WHITE);
+                  title.setTextSize(22);
+                  title.setTypeface(null, android.graphics.Typeface.BOLD);
+                  title.setGravity(android.view.Gravity.CENTER);
+                  title.setPadding(0, 20, 0, 10);
+
+                  TextView sub = new TextView(this);
+                  sub.setText("Please check your internet connection and try again.");
+                  sub.setTextColor(Color.parseColor("#aaaaaa"));
+                  sub.setTextSize(14);
+                  sub.setGravity(android.view.Gravity.CENTER);
+                  sub.setPadding(0, 0, 0, 30);
+
+                  Button retryBtn = new Button(this);
+                  retryBtn.setText("Retry");
+                  retryBtn.setBackgroundColor(Color.parseColor("#8c36ff"));
+                  retryBtn.setTextColor(Color.WHITE);
+                  retryBtn.setPadding(60, 20, 60, 20);
+                  retryBtn.setOnClickListener(v -> {
+                      if (isOnline()) {
+                          offlineView.setVisibility(View.GONE);
+                          webView.setVisibility(View.VISIBLE);
+                          webView.reload();
+                      }
+                  });
+
+                  offlineView.addView(emoji);
+                  offlineView.addView(title);
+                  offlineView.addView(sub);
+                  offlineView.addView(retryBtn);
 
                   webView = new WebView(this);
                   webView.setBackgroundColor(Color.BLACK);
@@ -158,10 +245,33 @@ jobs:
                       public void onPageFinished(WebView view, String url) {
                           view.animate().alpha(1f).setDuration(200).start();
                       }
+                      @Override
+                      public void onReceivedError(WebView view, int errorCode, String description, String failingUrl) {
+                          if (!isOnline()) {
+                              webView.setVisibility(View.GONE);
+                              offlineView.setVisibility(View.VISIBLE);
+                          }
+                      }
                   });
                   webView.setWebChromeClient(new WebChromeClient());
-                  webView.loadUrl("${{ github.event.inputs.url }}");
-                  setContentView(webView);
+
+                  if (isOnline()) {
+                      webView.loadUrl("${{ github.event.inputs.url }}");
+                  } else {
+                      webView.setVisibility(View.GONE);
+                      offlineView.setVisibility(View.VISIBLE);
+                  }
+
+                  android.widget.FrameLayout root = new android.widget.FrameLayout(this);
+                  root.addView(webView);
+                  root.addView(offlineView);
+                  setContentView(root);
+              }
+
+              private boolean isOnline() {
+                  ConnectivityManager cm = (ConnectivityManager) getSystemService(Context.CONNECTIVITY_SERVICE);
+                  NetworkInfo info = cm.getActiveNetworkInfo();
+                  return info != null && info.isConnected();
               }
 
               @Override
@@ -248,7 +358,6 @@ jobs:
 
           wget -q https://raw.githubusercontent.com/gradle/gradle/v8.2.0/gradlew -O gradlew
           chmod +x gradlew
-
           wget -q "https://github.com/gradle/gradle/raw/v8.2.0/gradle/wrapper/gradle-wrapper.jar" \
             -O gradle/wrapper/gradle-wrapper.jar
 
