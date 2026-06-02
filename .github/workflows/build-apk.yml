@@ -2,7 +2,7 @@ name: Build WebView APK
 
 on:
   workflow_dispatch:
-    workflow_dispatch:
+    inputs:
       url:
         description: 'Website URL'
         required: true
