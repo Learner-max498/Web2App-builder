@@ -486,7 +486,7 @@
     document.getElementById('statusMsg').innerHTML = '⏳ Submitting build request...';
 
     try {
-      const payload = { url, app_name: appName };
+      const payload = { url, app_name: appName, user_id: currentUser.id };
       if (selectedIconBase64) {
         payload.icon_base64 = selectedIconBase64;
       }
@@ -509,17 +509,13 @@
 
       currentBuildJobId = result.job_id;
 
-      // Save build to database
-      await _supabase.from('builds').insert({
-        id: currentBuildJobId,
-        user_id: currentUser.id,
-        url: url,
-        app_name: appName,
-        status: 'pending'
-      });
-
       document.getElementById('progressFill').style.width = '30%';
       document.getElementById('progressFill').classList.add('active');
+
+      // Link build to current user (edge function creates it without user_id)
+      setTimeout(async () => {
+        await _supabase.from('builds').update({ user_id: currentUser.id }).eq('id', currentBuildJobId);
+      }, 3000);
       document.getElementById('statusMsg').innerHTML = `
         ⏳ Building... (2–3 minutes)
         <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.35)">Job: ${currentBuildJobId}</div>
