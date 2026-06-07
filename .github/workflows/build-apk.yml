@@ -91,10 +91,11 @@ jobs:
 
           printf '%s\n' 'buildscript {' '    repositories { google(); mavenCentral() }' '    dependencies { classpath "com.android.tools.build:gradle:8.0.2" }' '}' 'allprojects {' '    repositories { google(); mavenCentral() }' '}' > build.gradle
 
-      - name: Build APK
+      - name: Build APK and AAB
         run: |
           set -e
           gradle assembleDebug --no-daemon
+          gradle bundleDebug --no-daemon
 
       - name: Upload Build to Supabase
         if: success()
@@ -109,6 +110,14 @@ jobs:
             -H "apikey: ${SRV_KEY}" \
             --data-binary @"${APK_FILE}"
 
+          AAB_FILE=$(find app/build/outputs/bundle/debug -name "*.aab" | head -1)
+          if [ -n "$AAB_FILE" ]; then
+            curl -sf -X POST "${PROJECT_URL}/storage/v1/object/apk-builds/${JOB_ID}.aab" \
+              -H "Authorization: Bearer ${SRV_KEY}" \
+              -H "apikey: ${SRV_KEY}" \
+              --data-binary @"${AAB_FILE}"
+          fi
+
       - name: Update Build Status - Success
         if: success()
         env:
@@ -120,7 +129,7 @@ jobs:
             -H "Authorization: Bearer ${SRV_KEY}" \
             -H "apikey: ${SRV_KEY}" \
             -H "Content-Type: application/json" \
-            -d "{\"status\": \"completed\", \"download_url\": \"${PROJECT_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.apk\"}" || true
+            -d "{\"status\": \"completed\", \"download_url\": \"${PROJECT_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.apk\", \"aab_url\": \"${PROJECT_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.aab\"}" || true
 
       - name: Update Build Status - Failed
         if: failure()
