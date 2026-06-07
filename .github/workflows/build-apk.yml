@@ -83,7 +83,7 @@ jobs:
 
           printf 'package %s;\n\nimport android.app.Activity;\nimport android.os.Bundle;\nimport android.webkit.WebView;\nimport android.webkit.WebViewClient;\nimport android.webkit.WebSettings;\n\npublic class MainActivity extends Activity {\n\n    @Override\n    protected void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n\n        WebView webView = new WebView(this);\n        setContentView(webView);\n\n        WebSettings s = webView.getSettings();\n        s.setJavaScriptEnabled(true);\n        s.setDomStorageEnabled(true);\n\n        webView.setWebViewClient(new WebViewClient());\n\n        webView.loadUrl("%s");\n    }\n}\n' "$PKG_NAME" "$APP_URL" > "$JAVA_DIR/MainActivity.java"
 
-          printf '%s\n' 'apply plugin: "com.android.application"' "android {" "    namespace \"${PKG_NAME}\"" '    compileSdkVersion 33' '    defaultConfig {' '        minSdkVersion 21' '        targetSdkVersion 33' '    }' '}' > app/build.gradle
+          printf '%s\n' 'apply plugin: "com.android.application"' "android {" "    namespace \"${PKG_NAME}\"" '    compileSdkVersion 33' '    defaultConfig {' "        applicationId \"${PKG_NAME}\"" '        minSdkVersion 21' '        targetSdkVersion 33' '        versionCode 1' '        versionName "1.0"' '    }' '}' > app/build.gradle
 
       - name: Create Gradle Build Files
         run: |
