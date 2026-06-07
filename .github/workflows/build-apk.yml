@@ -200,4 +200,4 @@ EOF
             -H "Authorization: Bearer ${SRV_KEY}" \
             -H "apikey: ${SRV_KEY}" \
             -H "Content-Type: application/json" \
-            -d '{"status": "failed", "error": "Build failed"}' || true
+            -d '{"status": "failed", "error": "Build failed"}' || tru
