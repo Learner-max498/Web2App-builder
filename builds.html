@@ -28,51 +28,14 @@
       margin: 0 auto;
       padding: 20px;
     }
-    /* header handled */
-    .logo {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 28px;
-      font-weight: 700;
-      color: #8c36ff;
-      text-decoration: none;
-    }
-    .nav-icons {
-      display: flex;
-      gap: 18px;
-    }
-    .nav-icon {
-      color: rgba(255,255,255,0.6);
-      font-size: 20px;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    .nav-icon:hover, .nav-icon.active {
-      color: #8c36ff;
-    }
-    .nav-icon-wrap {
-      display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
-    }
-    .nav-icon-wrap .nav-icon { font-size: 20px; }
-    .nav-icon-label {
-      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
-      text-transform: uppercase; color: rgba(255,255,255,0.4);
-    }
-    .nav-icon-wrap:hover .nav-icon, .nav-icon-wrap.active .nav-icon { color: #8c36ff; }
-    .nav-icon-wrap:hover .nav-icon-label, .nav-icon-wrap.active .nav-icon-label { color: #8c36ff; }
-    .dk-dialog-overlay { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:24px; }
-    .dk-dialog-overlay.show { display:flex; }
-    .dk-dialog { background:rgba(20,20,20,0.98); border:1px solid rgba(128,0,255,0.4); border-radius:24px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.8); animation:dialogPop 0.2s ease; }
-    @keyframes dialogPop { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
-    .dk-dialog-icon { font-size:32px; text-align:center; margin-bottom:12px; }
-    .dk-dialog-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:800; text-align:center; margin-bottom:8px; }
-    .dk-dialog-msg { font-size:13px; color:rgba(255,255,255,0.6); text-align:center; line-height:1.6; margin-bottom:20px; }
-    .dk-dialog-input { width:100%; padding:12px 14px; background:rgba(0,0,0,0.5); border:1.5px solid rgba(128,0,255,0.3); border-radius:12px; color:white; font-size:14px; outline:none; margin-bottom:16px; }
-    .dk-dialog-btns { display:flex; gap:10px; }
-    .dk-dialog-btns button { flex:1; padding:12px; border:none; border-radius:12px; font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.15s; }
-    .dk-btn-confirm { background:#8c36ff; color:white; }
-    .dk-btn-cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); }
-    .dk-btn-danger { background:rgba(255,68,68,0.15); color:#ff4444; border:1px solid rgba(255,68,68,0.3); }
-    .dk-btn-danger:hover { background:#ff4444 !important; color:white; }
+    .header { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 0 0; margin-bottom: 20px; gap: 10px; }
+    .devra-logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-shadow: 0 0 24px rgba(140,54,255,0.5); letter-spacing: -1px; line-height: 1; }
+    .nav-row { display: flex; gap: 20px; align-items: center; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; transition: color 0.2s; }
+    .nav-item i { font-size: 18px; }
+    .nav-item:hover, .nav-item.active { color: #8c36ff; }
+    .publish-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #25D366; color: white; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,211,102,0.35); transition: all 0.2s; }
+    .publish-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,211,102,0.5); }
     .card {
       background: rgba(20,20,20,0.7);
       border: 1px solid rgba(128,0,255,0.25);
@@ -113,6 +76,15 @@
     }
     .filter-btn:hover:not(.active) {
       border-color: #8c36ff;
+    }
+    .delete-all {
+      background: rgba(255,68,68,0.2);
+      border-color: #ff4444;
+      color: #ff4444;
+    }
+    .delete-all:hover {
+      background: #ff4444;
+      color: white;
     }
     .builds-list {
       display: flex;
@@ -219,15 +191,6 @@
     .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
     .toast.err { background: rgba(180,40,40,0.95); border-color: #ff4444; }
     .toast.ok { background: rgba(0,120,80,0.95); border-color: #00cc88; }
-    .delete-all {
-      background: rgba(255,68,68,0.2);
-      border-color: #ff4444;
-      color: #ff4444;
-    }
-    .delete-all:hover {
-      background: #ff4444;
-      color: white;
-    }
     .bsp {
       display: inline-block;
       width: 10px; height: 10px;
@@ -239,29 +202,34 @@
       margin-right: 4px;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
-      .build-header { flex-direction: column; }
-      .build-details { flex-direction: column; gap: 6px; }
-    }
-  
-    .header { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 0 0; margin-bottom: 20px; gap: 10px; }
-    .devra-logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-shadow: 0 0 24px rgba(140,54,255,0.5); letter-spacing: -1px; line-height: 1; }
-    .nav-row { display: flex; gap: 20px; align-items: center; }
-    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; transition: color 0.2s; }
-    .nav-item i { font-size: 18px; }
-    .nav-item:hover, .nav-item.active { color: #8c36ff; }
-    .publish-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #25D366; color: white; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,211,102,0.35); transition: all 0.2s; }
-    .publish-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,211,102,0.5); }
-
+    .dk-dialog-overlay { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:24px; }
+    .dk-dialog-overlay.show { display:flex; }
+    .dk-dialog { background:rgba(20,20,20,0.98); border:1px solid rgba(128,0,255,0.4); border-radius:24px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.8); animation:dialogPop 0.2s ease; }
+    @keyframes dialogPop { from{opacity:0;transform:scale(0.9)} to{opacity:1;transform:scale(1)} }
+    .dk-dialog-icon { font-size:32px; text-align:center; margin-bottom:12px; }
+    .dk-dialog-title { font-family:'Plus Jakarta Sans',sans-serif; font-size:17px; font-weight:800; text-align:center; margin-bottom:8px; }
+    .dk-dialog-msg { font-size:13px; color:rgba(255,255,255,0.6); text-align:center; line-height:1.6; margin-bottom:20px; }
+    .dk-dialog-input { width:100%; padding:12px 14px; background:rgba(0,0,0,0.5); border:1.5px solid rgba(128,0,255,0.3); border-radius:12px; color:white; font-size:14px; outline:none; margin-bottom:16px; }
+    .dk-dialog-btns { display:flex; gap:10px; }
+    .dk-dialog-btns button { flex:1; padding:12px; border:none; border-radius:12px; font-family:'Plus Jakarta Sans',sans-serif; font-size:14px; font-weight:700; cursor:pointer; transition:all 0.15s; }
+    .dk-btn-confirm { background:#8c36ff; color:white; }
+    .dk-btn-cancel { background:rgba(255,255,255,0.08); color:rgba(255,255,255,0.7); }
+    .dk-btn-danger { background:rgba(255,68,68,0.15); color:#ff4444; border:1px solid rgba(255,68,68,0.3); }
+    .dk-btn-danger:hover { background:#ff4444 !important; color:white; }
   </style>
 </head>
 <body>
 <div class="bg"></div>
 <div class="page">
   <div class="header">
-  <div class="devra-logo">Devra</div>
-  <div class="nav-row"><a class="nav-item " onclick="location.href='builder.html'"><i class="fas fa-hammer"></i><span>Builder</span></a><a class="nav-item active" onclick="location.href='builds.html'"><i class="fas fa-layer-group"></i><span>Builds</span></a><a class="nav-item " onclick="location.href='account.html'"><i class="fas fa-user"></i><span>Account</span></a></div>
-</div>
-<div class="card">
+    <div class="devra-logo">Devra</div>
+    <div class="nav-row">
+      <a class="nav-item" onclick="location.href='builder.html'"><i class="fas fa-hammer"></i><span>Builder</span></a>
+      <a class="nav-item active" onclick="location.href='builds.html'"><i class="fas fa-layer-group"></i><span>Builds</span></a>
+      <a class="nav-item" onclick="location.href='account.html'"><i class="fas fa-user"></i><span>Account</span></a>
+    </div>
+  </div>
+  <div class="card">
     <div class="card-title">
       <i class="fas fa-history" style="color:#8c36ff"></i>
       Build History
@@ -286,13 +254,14 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_c6Rv2f_Rfgk6PDHVYBAcvQ_VxC2rENW";
+  const SUPABASE_URL = "https://ahzgcgxosiucezfugqzy.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoemdjZ3hvc2l1Y2V6ZnVncXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjIyMTIsImV4cCI6MjA5NjM5ODIxMn0.hVLHPwvizKCbEb2uV1lxx_rAY9pfI6hHeCs57njzF7g";
 
   const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   let currentUser = null;
   let allBuilds = [];
   let currentFilter = 'all';
+  let refreshTimer = null;
 
   async function checkAuth() {
     let { data: { session } } = await _supabase.auth.getSession();
@@ -316,8 +285,6 @@
     setTimeout(() => el.classList.remove('show'), 3500);
   }
 
-  let refreshTimer = null;
-
   async function loadBuilds() {
     const { data: builds, error } = await _supabase
       .from('builds')
@@ -334,7 +301,6 @@
     allBuilds = builds || [];
     renderBuilds();
 
-    // Auto-refresh every 6s while any builds are in progress
     const hasActive = allBuilds.some(b => b.status === 'pending' || b.status === 'processing');
     if (hasActive) {
       if (!refreshTimer) {
@@ -367,7 +333,7 @@
     function badgeHtml(build) {
       const now = Date.now();
       const age = now - new Date(build.created_at).getTime();
-      const isStale = age > 15 * 60 * 1000; // 15 minutes
+      const isStale = age > 15 * 60 * 1000;
       if (build.status === 'completed') return `<span class="status-badge status-completed">✓ Completed</span>`;
       if (build.status === 'failed') return `<span class="status-badge status-failed">✗ Failed</span>`;
       if (build.status === 'pending' || build.status === 'processing') {
@@ -434,7 +400,6 @@
   }
 
   function retryBuild(url, appName) {
-    // Store in localStorage and redirect to builder
     localStorage.setItem('retry_url', url);
     localStorage.setItem('retry_appname', appName);
     window.location.href = 'builder.html';
@@ -460,13 +425,6 @@
     window.location.href = 'index.html';
   }
 
-  window.filterBuilds = filterBuilds;
-  window.deleteBuild = deleteBuild;
-  window.deleteAllBuilds = deleteAllBuilds;
-  window.retryBuild = retryBuild;
-  window.logout = logout;
-
-  // ── Custom Dialog ──
   function dkConfirm(msg, icon='⚠️', title='Confirm', dangerBtn=false) {
     return new Promise(res => {
       document.getElementById('dkDialogIcon').textContent = icon;
@@ -477,11 +435,18 @@
       window._dkResolve = res;
     });
   }
+
   function dkResolve(val) {
     document.getElementById('dkDialogOverlay').classList.remove('show');
     if(window._dkResolve) { window._dkResolve(val); window._dkResolve=null; }
   }
   window.dkResolve = dkResolve;
+
+  window.filterBuilds = filterBuilds;
+  window.deleteBuild = deleteBuild;
+  window.deleteAllBuilds = deleteAllBuilds;
+  window.retryBuild = retryBuild;
+  window.logout = logout;
 
   checkAuth();
 </script>

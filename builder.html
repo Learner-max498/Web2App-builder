@@ -18,7 +18,6 @@
       overflow-x: hidden;
     }
 
-    /* Purple gradient background */
     .bg {
       position: fixed;
       inset: 0;
@@ -52,44 +51,15 @@
       padding: 20px 20px 40px;
     }
 
-    /* Header */
-    /* header handled */
-    .logo {
-      font-family: 'Space Grotesk', sans-serif;
-      font-size: 28px;
-      font-weight: 700;
-      color: #8c36ff;
-      text-decoration: none;
-    }
-    .nav-icons {
-      display: flex;
-      gap: 18px;
-    }
-    .nav-icon {
-      color: rgba(255,255,255,0.6);
-      font-size: 20px;
-      cursor: pointer;
-      transition: all 0.2s;
-      position: relative;
-    }
-    .nav-icon:hover, .nav-icon.active {
-      color: #8c36ff;
-    }
-    .badge {
-      position: absolute;
-      top: -6px;
-      right: -10px;
-      background: #8c36ff;
-      color: white;
-      font-size: 9px;
-      font-weight: 700;
-      padding: 2px 5px;
-      border-radius: 10px;
-      min-width: 16px;
-      text-align: center;
-    }
+    .header { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 0 0; margin-bottom: 20px; gap: 10px; }
+    .devra-logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-shadow: 0 0 24px rgba(140,54,255,0.5); letter-spacing: -1px; line-height: 1; }
+    .nav-row { display: flex; gap: 20px; align-items: center; }
+    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; transition: color 0.2s; }
+    .nav-item i { font-size: 18px; }
+    .nav-item:hover, .nav-item.active { color: #8c36ff; }
+    .publish-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #25D366; color: white; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,211,102,0.35); transition: all 0.2s; }
+    .publish-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,211,102,0.5); }
 
-    /* Cards */
     .card {
       background: rgba(20,20,20,0.7);
       border: 1px solid rgba(128,0,255,0.25);
@@ -113,7 +83,6 @@
       margin-bottom: 20px;
     }
 
-    /* Inputs */
     input, textarea {
       width: 100%;
       padding: 14px 16px;
@@ -178,15 +147,7 @@
       cursor: not-allowed;
       transform: none;
     }
-    .btn-secondary {
-      background: rgba(255,255,255,0.08);
-      box-shadow: none;
-    }
-    .btn-secondary:hover {
-      background: rgba(128,0,255,0.2);
-    }
 
-    /* Progress */
     .progress-container {
       background: rgba(255,255,255,0.1);
       border-radius: 30px;
@@ -214,12 +175,6 @@
       margin: 12px 0;
     }
 
-    /* Status colors */
-    .status-success { color: #00cc88; }
-    .status-error { color: #ff4444; }
-    .status-pending { color: #ffaa00; }
-
-    /* Builds list */
     .build-item {
       background: rgba(0,0,0,0.3);
       border-radius: 16px;
@@ -263,7 +218,6 @@
     .status-pending-badge { background: rgba(255,170,0,0.2); color: #ffaa00; }
     .status-failed { background: rgba(255,68,68,0.2); color: #ff4444; }
 
-    /* Toast */
     .toast {
       position: fixed;
       bottom: 28px;
@@ -300,22 +254,6 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    .user-email {
-      font-size: 12px;
-      color: rgba(255,255,255,0.5);
-      margin-right: 8px;
-    }
-    .nav-icon-wrap {
-      display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
-    }
-    .nav-icon-wrap .nav-icon { font-size: 20px; }
-    .nav-icon-label {
-      font-size: 9px; font-weight: 700; letter-spacing: 0.5px;
-      text-transform: uppercase; color: rgba(255,255,255,0.4);
-    }
-    .nav-icon-wrap:hover .nav-icon, .nav-icon-wrap.active .nav-icon { color: #8c36ff; }
-    .nav-icon-wrap:hover .nav-icon-label, .nav-icon-wrap.active .nav-icon-label { color: #8c36ff; }
-    /* Custom Dialog */
     .dk-dialog-overlay { display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:24px; }
     .dk-dialog-overlay.show { display:flex; }
     .dk-dialog { background:rgba(20,20,20,0.98); border:1px solid rgba(128,0,255,0.4); border-radius:24px; padding:28px 24px; width:100%; max-width:340px; box-shadow:0 20px 60px rgba(0,0,0,0.8); animation:dialogPop 0.2s ease; }
@@ -332,45 +270,30 @@
     .dk-btn-danger { background:rgba(255,68,68,0.15); color:#ff4444; border:1px solid rgba(255,68,68,0.3); }
     .dk-btn-danger:hover { background:#ff4444 !important; color:white; }
 
-    .subdomain-preview {
-      font-size: 12px;
-      color: #8c36ff;
-      margin-top: 4px;
-      text-align: right;
-    }
-
     input[type="file"] { display: none; }
 
     @media (max-width: 480px) {
       .page { padding: 16px; }
       .card { padding: 18px; }
     }
-  
-    .header { display: flex; flex-direction: column; align-items: flex-start; padding: 16px 0 0; margin-bottom: 20px; gap: 10px; }
-    .devra-logo { font-family: 'Space Grotesk', sans-serif; font-size: 34px; font-weight: 700; color: #8c36ff; text-shadow: 0 0 24px rgba(140,54,255,0.5); letter-spacing: -1px; line-height: 1; }
-    .nav-row { display: flex; gap: 20px; align-items: center; }
-    .nav-item { display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer; color: rgba(255,255,255,0.45); font-size: 10px; font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; text-decoration: none; transition: color 0.2s; }
-    .nav-item i { font-size: 18px; }
-    .nav-item:hover, .nav-item.active { color: #8c36ff; }
-    .publish-btn { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; background: #25D366; color: white; border-radius: 12px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 13px; font-weight: 700; text-decoration: none; box-shadow: 0 4px 14px rgba(37,211,102,0.35); transition: all 0.2s; }
-    .publish-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37,211,102,0.5); }
-
   </style>
 </head>
 <body>
 <div class="bg"></div>
 
 <div class="page">
-  <!-- Header -->
   <div class="header">
-  <div class="devra-logo">Devra</div>
-  <div class="nav-row"><a class="nav-item active" onclick="location.href='builder.html'"><i class="fas fa-hammer"></i><span>Builder</span></a><a class="nav-item " onclick="location.href='builds.html'"><i class="fas fa-layer-group"></i><span>Builds</span></a><a class="nav-item " onclick="location.href='account.html'"><i class="fas fa-user"></i><span>Account</span></a></div>
+    <div class="devra-logo">Devra</div>
+    <div class="nav-row">
+      <a class="nav-item active" onclick="location.href='builder.html'"><i class="fas fa-hammer"></i><span>Builder</span></a>
+      <a class="nav-item" onclick="location.href='builds.html'"><i class="fas fa-layer-group"></i><span>Builds</span></a>
+      <a class="nav-item" onclick="location.href='account.html'"><i class="fas fa-user"></i><span>Account</span></a>
+    </div>
     <a href="https://wa.me/2349067004423?text=Hi%20Devra%2C%20I%20want%20to%20publish%20my%20app%20to%20the%20Play%20Store" target="_blank" class="publish-btn">
       🚀 Publish my app to Play Store
     </a>
-</div>
+  </div>
 
-  <!-- Builder Form Card -->
   <div class="card">
     <div class="card-title">🛠️ Build Your App</div>
     <div class="card-sub">Enter your website URL to convert it into an Android APK + AAB</div>
@@ -398,7 +321,6 @@
     </div>
   </div>
 
-  <!-- Recent Builds -->
   <div class="card">
     <div class="card-title">📦 Recent Builds</div>
     <div id="recentBuildsList">
@@ -407,15 +329,13 @@
       </div>
     </div>
   </div>
-
-</div>
 </div>
 
 <div class="toast" id="toast"></div>
 
 <script>
-  const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
-  const SUPABASE_ANON_KEY = "sb_publishable_c6Rv2f_Rfgk6PDHVYBAcvQ_VxC2rENW";
+  const SUPABASE_URL = "https://ahzgcgxosiucezfugqzy.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoemdjZ3hvc2l1Y2V6ZnVncXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjIyMTIsImV4cCI6MjA5NjM5ODIxMn0.hVLHPwvizKCbEb2uV1lxx_rAY9pfI6hHeCs57njzF7g";
 
   const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -424,7 +344,6 @@
   let selectedIconBase64 = null;
   let currentBuildJobId = null;
 
-  // Check auth
   async function checkAuth() {
     let { data: { session } } = await _supabase.auth.getSession();
     if (!session) {
@@ -440,7 +359,6 @@
     await loadRecentBuilds();
   }
 
-  // Icon upload
   const iconInputEl = document.getElementById('iconInput');
   if (iconInputEl) iconInputEl.addEventListener('change', function(e) {
     const file = e.target.files[0];
@@ -482,7 +400,6 @@
 
     document.getElementById('buildProgress').style.display = 'block';
     document.getElementById('progressFill').style.width = '10%';
-    document.getElementById('statusMsg').style.color = '';
     document.getElementById('statusMsg').innerHTML = '⏳ Submitting build request...';
 
     try {
@@ -491,7 +408,7 @@
         payload.icon_base64 = selectedIconBase64;
       }
 
-      const response = await fetch(`${SUPABASE_URL}/functions/v1/smooth-responder`, {
+      const response = await fetch(`${SUPABASE_URL}/functions/v1/build-apk`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
@@ -511,11 +428,6 @@
 
       document.getElementById('progressFill').style.width = '30%';
       document.getElementById('progressFill').classList.add('active');
-
-      // Link build to current user (edge function creates it without user_id)
-      setTimeout(async () => {
-        await _supabase.from('builds').update({ user_id: currentUser.id }).eq('id', currentBuildJobId);
-      }, 3000);
       document.getElementById('statusMsg').innerHTML = `
         ⏳ Building... (2–3 minutes)
         <div style="margin-top:8px;font-size:11px;color:rgba(255,255,255,0.35)">Job: ${currentBuildJobId}</div>
@@ -523,7 +435,6 @@
           <button onclick="cancelBuild()" style="background:rgba(255,68,68,0.15);border:1px solid rgba(255,68,68,0.3);color:#ff4444;padding:6px 16px;border-radius:8px;font-size:12px;cursor:pointer;">✕ Cancel</button>
         </div>`;
 
-      // Start polling DB directly
       if (pollInterval) clearInterval(pollInterval);
       pollInterval = setInterval(() => pollBuildStatus(currentBuildJobId), 6000);
 
@@ -573,7 +484,7 @@
               ${result.aab_url ? `<a href="${result.aab_url}" download style="display:inline-flex;align-items:center;gap:6px;padding:11px 20px;background:rgba(67,232,160,0.15);border:1px solid rgba(67,232,160,0.4);color:#43e8a0;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">📦 Download AAB</a>` : ''}
             </div>
             <a href="https://wa.me/2349067004423?text=Hi%20Devra%2C%20I%20want%20to%20publish%20my%20app%20to%20the%20Play%20Store" target="_blank" style="display:inline-flex;align-items:center;gap:8px;padding:11px 22px;background:#25D366;color:white;border-radius:12px;font-weight:700;font-size:13px;text-decoration:none;">
-              🚀 Publish to Play Store — &#8358;5,000
+              🚀 Publish to Play Store — ₦5,000
             </a>
           </div>`;
         document.getElementById('buildBtn').disabled = false;
@@ -661,7 +572,6 @@
     window.location.href = 'index.html';
   }
 
-  // ── Custom Dialog ──────────────────────────────────────────────
   function dkAlert(msg, icon='ℹ️', title='Notice') {
     return new Promise(res => {
       document.getElementById('dkDialogIcon').textContent = icon;
@@ -690,10 +600,8 @@
   }
   window.dkResolve = dkResolve;
 
-  // Initialize
   checkAuth();
 
-  // Export for global access
   window.deleteBuild = deleteBuild;
   window.startBuild = startBuild;
   window.logout = logout;

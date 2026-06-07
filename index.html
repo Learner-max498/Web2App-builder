@@ -3,9 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DropKit — Build & Deploy Anything</title>
+  <title>Devra — Build & Deploy Anything</title>
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
-  <!-- ✅ Supabase CDN - MUST BE FIRST -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
@@ -280,7 +279,7 @@
 
 <div class="page">
   <div class="hero">
-    <div class="logo">DropKit</div>
+    <div class="logo">Devra</div>
     <div class="tagline">Build &amp; Deploy Anything</div>
   </div>
 
@@ -307,7 +306,7 @@
 
     <div class="form active" id="login-form">
       <div class="form-title">Welcome back 👋</div>
-      <div class="form-sub">Sign in to your DropKit account</div>
+      <div class="form-sub">Sign in to your Devra account</div>
       <div class="field">
         <label>Email</label>
         <input type="email" id="login-email" placeholder="you@example.com" autocomplete="email">
@@ -318,10 +317,11 @@
       </div>
       <button class="btn" id="login-btn" onclick="handleLogin()">Sign In</button>
       <p class="switch-link">Don't have an account? <a onclick="switchTab('signup')">Create one</a></p>
+      <p class="switch-link"><a href="reset.html">Forgot password?</a></p>
     </div>
 
     <div class="form" id="signup-form">
-      <div class="form-title">Join DropKit 🚀</div>
+      <div class="form-title">Join Devra 🚀</div>
       <div class="form-sub">Create your free account</div>
       <div class="field">
         <label>Full Name</label>
@@ -351,21 +351,17 @@
 <div class="toast" id="toast"></div>
 
 <script>
-  // ✅ Supabase configuration
-  const SUPABASE_URL = "https://jxdobdllxihmfssodrka.supabase.co";
-  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp4ZG9iZGxseGlobWZzc29kcmthIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk5NzI3MzcsImV4cCI6MjA5NTU0ODczN30.sd1lh9mfIgP4uchRCIsIy209cnb8kGRuOFw_bvcE7ig";
+  const SUPABASE_URL = "https://ahzgcgxosiucezfugqzy.supabase.co";
+  const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFoemdjZ3hvc2l1Y2V6ZnVncXp5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA4MjIyMTIsImV4cCI6MjA5NjM5ODIxMn0.hVLHPwvizKCbEb2uV1lxx_rAY9pfI6hHeCs57njzF7g";
   
-  // ✅ Create supabase client (only once)
   const _supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-  // ✅ Check if already logged in
   _supabase.auth.getSession().then(({ data }) => {
     if (data.session) {
       window.location.href = 'builder.html';
     }
   });
 
-  // ✅ Tab switching function
   window.switchTab = function(tab) {
     const isLogin = tab === 'login';
     const loginForm = document.getElementById('login-form');
@@ -387,7 +383,6 @@
     }
   };
 
-  // ✅ Toast function
   let toastTimer;
   function toast(msg, type = '') {
     const el = document.getElementById('toast');
@@ -398,7 +393,6 @@
     toastTimer = setTimeout(() => el.classList.remove('show'), 3500);
   }
 
-  // ✅ Loading state
   function setLoading(btnId, isLoading, originalText) {
     const btn = document.getElementById(btnId);
     if (!btn) return;
@@ -406,7 +400,6 @@
     btn.innerHTML = isLoading ? '<span class="bsp"></span>Please wait...' : originalText;
   }
 
-  // ✅ Handle Login
   window.handleLogin = async function() {
     const email = document.getElementById('login-email').value.trim();
     const password = document.getElementById('login-password').value;
@@ -427,7 +420,6 @@
     window.location.href = 'builder.html';
   };
 
-  // ✅ Handle Signup
   window.handleSignup = async function() {
     const name = document.getElementById('signup-name').value.trim();
     const email = document.getElementById('signup-email').value.trim();
@@ -457,7 +449,6 @@
     setTimeout(() => window.switchTab('login'), 2000);
   };
 
-  // ✅ Enter key support
   document.addEventListener('keydown', (e) => {
     if (e.key !== 'Enter') return;
     const loginForm = document.getElementById('login-form');
