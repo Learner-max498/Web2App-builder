@@ -45,13 +45,11 @@ jobs:
           APP_URL: ${{ github.event.inputs.url }}
           APP_NAME: ${{ github.event.inputs.app_name }}
           ICON_PATH: ${{ github.event.inputs.icon_path }}
-          SUPA_URL: ${{ secrets.SUPABASE_URL }}
+          PROJECT_URL: ${{ secrets.PROJECT_URL }}
         run: |
           set -e
 
-          # ----------------------------
           # Package name
-          # ----------------------------
           PKG_SUFFIX=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
           PKG_NAME="com.web2app.${PKG_SUFFIX}"
           JAVA_DIR="app/src/main/java/$(echo $PKG_NAME | tr '.' '/')"
@@ -61,9 +59,7 @@ jobs:
 
           echo "Package: $PKG_NAME"
 
-          # ----------------------------
-          # styles.xml (SAFE)
-          # ----------------------------
+          # styles.xml
           cat > app/src/main/res/values/styles.xml <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
@@ -75,13 +71,11 @@ jobs:
 </resources>
 EOF
 
-          # ----------------------------
-          # ICONS (optional)
-          # ----------------------------
+          # Icons (optional)
           ICON_ATTR=""
 
           if [ -n "$ICON_PATH" ]; then
-            curl -sf "${SUPA_URL}/storage/v1/object/public/app-icons/${ICON_PATH}" -o /tmp/icon.png || true
+            curl -sf "${PROJECT_URL}/storage/v1/object/public/app-icons/${ICON_PATH}" -o /tmp/icon.png || true
 
             if file /tmp/icon.png | grep -q image; then
               convert /tmp/icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
@@ -102,9 +96,7 @@ EOF
             fi
           fi
 
-          # ----------------------------
-          # AndroidManifest (SAFE)
-          # ----------------------------
+          # AndroidManifest
           cat > app/src/main/AndroidManifest.xml <<EOF
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
@@ -135,9 +127,7 @@ EOF
 </manifest>
 EOF
 
-          # ----------------------------
-          # MainActivity (clean)
-          # ----------------------------
+          # MainActivity
           cat > ${JAVA_DIR}/MainActivity.java <<EOF
 package ${PKG_NAME};
 
@@ -172,21 +162,42 @@ EOF
           set -e
           ./gradlew assembleDebug --no-daemon
 
-      - name: Upload Build (Supabase)
+      - name: Upload Build to Supabase
         if: success()
         env:
           JOB_ID: ${{ github.event.inputs.job_id }}
-          SUPA_URL: ${{ secrets.SUPABASE_URL }}
-          SUPA_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          PROJECT_URL: ${{ secrets.PROJECT_URL }}
+          SRV_KEY: ${{ secrets.SRV_KEY }}
         run: |
           APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
 
-          curl -sf -X POST "${SUPA_URL}/storage/v1/object/apk-builds/${JOB_ID}.apk" \
-            -H "Authorization: Bearer ${SUPA_KEY}" \
-            -H "apikey: ${SUPA_KEY}" \
+          curl -sf -X POST "${PROJECT_URL}/storage/v1/object/apk-builds/${JOB_ID}.apk" \
+            -H "Authorization: Bearer ${SRV_KEY}" \
+            -H "apikey: ${SRV_KEY}" \
             --data-binary @"${APK_FILE}"
 
-      - name: Mark Failed
-        if: failure()
+      - name: Update Build Status - Success
+        if: success()
+        env:
+          JOB_ID: ${{ github.event.inputs.job_id }}
+          PROJECT_URL: ${{ secrets.PROJECT_URL }}
+          SRV_KEY: ${{ secrets.SRV_KEY }}
         run: |
-          echo "Build failed"
+          curl -sf -X PATCH "${PROJECT_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SRV_KEY}" \
+            -H "apikey: ${SRV_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"status": "completed", "download_url": "'"${PROJECT_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.apk"'"}' || true
+
+      - name: Update Build Status - Failed
+        if: failure()
+        env:
+          JOB_ID: ${{ github.event.inputs.job_id }}
+          PROJECT_URL: ${{ secrets.PROJECT_URL }}
+          SRV_KEY: ${{ secrets.SRV_KEY }}
+        run: |
+          curl -sf -X PATCH "${PROJECT_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
+            -H "Authorization: Bearer ${SRV_KEY}" \
+            -H "apikey: ${SRV_KEY}" \
+            -H "Content-Type: application/json" \
+            -d '{"status": "failed", "error": "Build failed"}' || true
