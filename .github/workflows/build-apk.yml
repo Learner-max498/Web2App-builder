@@ -39,6 +39,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y imagemagick zip unzip curl
 
+      - name: Install Gradle 8
+        run: |
+          curl -sL https://services.gradle.org/distributions/gradle-8.0-bin.zip -o /tmp/gradle.zip
+          unzip -q /tmp/gradle.zip -d /opt
+          echo "/opt/gradle-8.0/bin" >> $GITHUB_PATH
+
       - name: Generate Android Project
         shell: bash
         env:
@@ -86,21 +92,10 @@ jobs:
 
           printf '%s\n' 'apply plugin: "com.android.application"' 'android {' '    compileSdkVersion 33' '    defaultConfig {' '        minSdkVersion 21' '        targetSdkVersion 33' '    }' '}' > app/build.gradle
 
-          mkdir -p gradle/wrapper
-
-          printf 'distributionBase=GRADLE_USER_HOME\ndistributionPath=wrapper/dists\ndistributionUrl=https\\://services.gradle.org/distributions/gradle-8.0-bin.zip\nzipStoreBase=GRADLE_USER_HOME\nzipStorePath=wrapper/dists\n' > gradle/wrapper/gradle-wrapper.properties
-
-          curl -sL "https://services.gradle.org/distributions/gradle-8.0-bin.zip" -o /tmp/gradle.zip
-          unzip /tmp/gradle.zip -d /tmp/gradle-dist
-          find /tmp/gradle-dist -name "gradle-wrapper.jar" | head -1 | xargs -I{} cp {} gradle/wrapper/gradle-wrapper.jar
-
-          printf '#!/bin/sh\nAPP_HOME="$(cd "$(dirname "$0")" && pwd)"\nexec java -classpath "$APP_HOME/gradle/wrapper/gradle-wrapper.jar" org.gradle.wrapper.GradleWrapperMain "$@"\n' > gradlew
-          chmod +x gradlew
-
       - name: Build APK
         run: |
           set -e
-          ./gradlew assembleDebug --no-daemon
+          gradle assembleDebug --no-daemon
 
       - name: Upload Build to Supabase
         if: success()
