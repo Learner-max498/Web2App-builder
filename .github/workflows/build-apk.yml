@@ -1,150 +1,159 @@
-name: Build WebView APK
+- name: Generate Android Project
+  shell: bash
+  env:
+    APP_URL: ${{ github.event.inputs.url }}
+    APP_NAME: ${{ github.event.inputs.app_name }}
+    ICON_PATH: ${{ github.event.inputs.icon_path }}
+    PROJECT_URL: ${{ secrets.PROJECT_URL }}
+  run: |
+    set -e
 
-on:
-  workflow_dispatch:
-    inputs:
-      url:
-        description: 'Website URL'
-        required: true
-      app_name:
-        description: 'App Name'
-        required: true
-      job_id:
-        description: 'Job ID'
-        required: true
-      icon_path:
-        description: 'Icon Path'
-        required: false
-        default: ''
+    PKG_SUFFIX=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
+    PKG_NAME="com.web2app.${PKG_SUFFIX}"
+    JAVA_DIR="app/src/main/java/$(echo $PKG_NAME | tr '.' '/')"
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
+    mkdir -p "$JAVA_DIR"
+    mkdir -p app/src/main/res/{mipmap-hdpi,mipmap-mdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi,mipmap-anydpi-v26,drawable,values}
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+    # styles.xml
+    printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<resources>' '    <style name="AppTheme" parent="android:Theme.Black">' '        <item name="android:windowBackground">@android:color/black</item>' '        <item name="android:windowNoTitle">true</item>' '        <item name="android:windowFullscreen">false</item>' '    </style>' '</resources>' > app/src/main/res/values/styles.xml
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 17
+    # Default icon (purple square)
+    convert -size 192x192 xc:'#8c36ff' app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+    convert -size 144x144 xc:'#8c36ff' app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+    convert -size 96x96 xc:'#8c36ff' app/src/main/res/mipmap-xhdpi/ic_launcher.png
+    convert -size 72x72 xc:'#8c36ff' app/src/main/res/mipmap-hdpi/ic_launcher.png
+    convert -size 48x48 xc:'#8c36ff' app/src/main/res/mipmap-mdpi/ic_launcher.png
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+    # Adaptive icon XML
+    cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
+<?xml version="1.0" encoding="utf-8"?>
+<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
+    <background android:drawable="@android:color/transparent"/>
+    <foreground android:drawable="@mipmap/ic_launcher"/>
+</adaptive-icon>
+EOF
 
-      - name: Install tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y imagemagick zip unzip curl
+    # Override with custom icon if provided
+    if [ -n "$ICON_PATH" ]; then
+      curl -sf "${PROJECT_URL}/storage/v1/object/public/app-icons/${ICON_PATH}" -o /tmp/icon.png || true
+      if file /tmp/icon.png | grep -q image; then
+        convert /tmp/icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
+        convert /tmp/icon.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png
+        convert /tmp/icon.png -resize 96x96   app/src/main/res/mipmap-xhdpi/ic_launcher.png
+        convert /tmp/icon.png -resize 72x72   app/src/main/res/mipmap-hdpi/ic_launcher.png
+        convert /tmp/icon.png -resize 48x48   app/src/main/res/mipmap-mdpi/ic_launcher.png
+      fi
+    fi
 
-      - name: Install Gradle 8
-        run: |
-          curl -sL https://services.gradle.org/distributions/gradle-8.0-bin.zip -o /tmp/gradle.zip
-          unzip -q /tmp/gradle.zip -d /opt
-          echo "/opt/gradle-8.0/bin" >> $GITHUB_PATH
+    # AndroidManifest.xml
+    cat > app/src/main/AndroidManifest.xml <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="$PKG_NAME">
 
-      - name: Generate Android Project
-        shell: bash
-        env:
-          APP_URL: ${{ github.event.inputs.url }}
-          APP_NAME: ${{ github.event.inputs.app_name }}
-          ICON_PATH: ${{ github.event.inputs.icon_path }}
-          PROJECT_URL: ${{ secrets.PROJECT_URL }}
-        run: |
-          set -e
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
 
-          PKG_SUFFIX=$(echo "$APP_NAME" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '_' | sed 's/^_//;s/_$//' | cut -c1-20)
-          PKG_NAME="com.web2app.${PKG_SUFFIX}"
-          JAVA_DIR="app/src/main/java/$(echo $PKG_NAME | tr '.' '/')"
+    <application
+        android:label="$APP_NAME"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher"
+        android:theme="@style/AppTheme"
+        android:usesCleartextTraffic="true">
 
-          mkdir -p "$JAVA_DIR"
-          mkdir -p app/src/main/res/{mipmap-hdpi,mipmap-mdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi,mipmap-anydpi-v26,drawable,values}
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
 
-          # Generate default purple icon (used if no custom icon uploaded)
-          convert -size 192x192 xc:'#8c36ff' app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-          convert -size 144x144 xc:'#8c36ff' app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-          convert -size 96x96 xc:'#8c36ff' app/src/main/res/mipmap-xhdpi/ic_launcher.png
-          convert -size 72x72 xc:'#8c36ff' app/src/main/res/mipmap-hdpi/ic_launcher.png
-          convert -size 48x48 xc:'#8c36ff' app/src/main/res/mipmap-mdpi/ic_launcher.png
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
+            </intent-filter>
 
-          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<resources>' '    <style name="AppTheme" parent="android:Theme.Black">' '        <item name="android:windowBackground">@android:color/black</item>' '        <item name="android:windowNoTitle">true</item>' '        <item name="android:windowFullscreen">false</item>' '    </style>' '</resources>' > app/src/main/res/values/styles.xml
+        </activity>
 
-          if [ -n "$ICON_PATH" ]; then
-            curl -sf "${PROJECT_URL}/storage/v1/object/public/app-icons/${ICON_PATH}" -o /tmp/icon.png || true
-            if file /tmp/icon.png | grep -q image; then
-              convert /tmp/icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
-              convert /tmp/icon.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png
-              convert /tmp/icon.png -resize 96x96   app/src/main/res/mipmap-xhdpi/ic_launcher.png
-              convert /tmp/icon.png -resize 72x72   app/src/main/res/mipmap-hdpi/ic_launcher.png
-              convert /tmp/icon.png -resize 48x48   app/src/main/res/mipmap-mdpi/ic_launcher.png
-              printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '    <background android:drawable="@android:color/transparent"/>' '    <foreground android:drawable="@mipmap/ic_launcher"/>' '</adaptive-icon>' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
-            fi
-          fi
+    </application>
 
-          printf '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n\n    <application\n        android:label="%s"\n        android:icon="@mipmap/ic_launcher"\n        android:roundIcon="@mipmap/ic_launcher"\n        android:theme="@style/AppTheme"\n        android:usesCleartextTraffic="true">\n\n        <activity\n            android:name=".MainActivity"\n            android:exported="true">\n\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN"/>\n                <category android:name="android.intent.category.LAUNCHER"/>\n            </intent-filter>\n\n        </activity>\n\n    </application>\n\n</manifest>\n' "$APP_NAME" > app/src/main/AndroidManifest.xml
+</manifest>
+EOF
 
-          printf 'package %s;\n\nimport android.app.Activity;\nimport android.os.Bundle;\nimport android.webkit.WebView;\nimport android.webkit.WebViewClient;\nimport android.webkit.WebSettings;\n\npublic class MainActivity extends Activity {\n\n    @Override\n    protected void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n\n        WebView webView = new WebView(this);\n        setContentView(webView);\n\n        WebSettings s = webView.getSettings();\n        s.setJavaScriptEnabled(true);\n        s.setDomStorageEnabled(true);\n\n        webView.setWebViewClient(new WebViewClient());\n\n        webView.loadUrl("%s");\n    }\n}\n' "$PKG_NAME" "$APP_URL" > "$JAVA_DIR/MainActivity.java"
+    # MainActivity.java
+    cat > ${JAVA_DIR}/MainActivity.java <<EOF
+package $PKG_NAME;
 
-          printf '%s\n' 'apply plugin: "com.android.application"' "android {" "    namespace \"${PKG_NAME}\"" '    compileSdkVersion 33' '    defaultConfig {' "        applicationId \"${PKG_NAME}\"" '        minSdkVersion 21' '        targetSdkVersion 33' '        versionCode 1' '        versionName "1.0"' '    }' '}' > app/build.gradle
+import android.app.Activity;
+import android.os.Bundle;
+import android.webkit.WebView;
+import android.webkit.WebViewClient;
+import android.webkit.WebSettings;
 
-      - name: Create Gradle Build Files
-        run: |
-          printf '%s\n' 'rootProject.name = "WebViewApp"' 'include ":app"' > settings.gradle
-          printf '%s\n' 'buildscript {' '    repositories { google(); mavenCentral() }' '    dependencies { classpath "com.android.tools.build:gradle:8.0.2" }' '}' 'allprojects {' '    repositories { google(); mavenCentral() }' '}' > build.gradle
+public class MainActivity extends Activity {
 
-      - name: Build APK and AAB
-        run: |
-          set -e
-          gradle assembleDebug --no-daemon
-          gradle bundleDebug --no-daemon
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
 
-      - name: Upload Build to Supabase
-        if: success()
-        env:
-          JOB_ID: ${{ github.event.inputs.job_id }}
-          PROJECT_URL: ${{ secrets.PROJECT_URL }}
-          SRV_KEY: ${{ secrets.SRV_KEY }}
-        run: |
-          APK_FILE=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-          if [ -n "$APK_FILE" ]; then
-            curl -sf -X POST "${PROJECT_URL}/storage/v1/object/apk-builds/${JOB_ID}.apk" \
-              -H "Authorization: Bearer ${SRV_KEY}" \
-              -H "apikey: ${SRV_KEY}" \
-              --data-binary @"${APK_FILE}"
-          fi
+        WebView webView = new WebView(this);
+        setContentView(webView);
 
-          AAB_FILE=$(find app/build/outputs/bundle/debug -name "*.aab" | head -1)
-          if [ -n "$AAB_FILE" ]; then
-            curl -sf -X POST "${PROJECT_URL}/storage/v1/object/apk-builds/${JOB_ID}.aab" \
-              -H "Authorization: Bearer ${SRV_KEY}" \
-              -H "apikey: ${SRV_KEY}" \
-              --data-binary @"${AAB_FILE}"
-          fi
+        WebSettings s = webView.getSettings();
+        s.setJavaScriptEnabled(true);
+        s.setDomStorageEnabled(true);
 
-      - name: Update Build Status - Success
-        if: success()
-        env:
-          JOB_ID: ${{ github.event.inputs.job_id }}
-          PROJECT_URL: ${{ secrets.PROJECT_URL }}
-          SRV_KEY: ${{ secrets.SRV_KEY }}
-        run: |
-          curl -sf -X PATCH "${PROJECT_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
-            -H "Authorization: Bearer ${SRV_KEY}" \
-            -H "apikey: ${SRV_KEY}" \
-            -H "Content-Type: application/json" \
-            -d "{\"status\": \"completed\", \"download_url\": \"${PROJECT_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.apk\", \"aab_url\": \"${PROJECT_URL}/storage/v1/object/public/apk-builds/${JOB_ID}.aab\"}" || true
+        webView.setWebViewClient(new WebViewClient());
 
-      - name: Update Build Status - Failed
-        if: failure()
-        env:
-          JOB_ID: ${{ github.event.inputs.job_id }}
-          PROJECT_URL: ${{ secrets.PROJECT_URL }}
-          SRV_KEY: ${{ secrets.SRV_KEY }}
-        run: |
-          curl -sf -X PATCH "${PROJECT_URL}/rest/v1/builds?id=eq.${JOB_ID}" \
-            -H "Authorization: Bearer ${SRV_KEY}" \
-            -H "apikey: ${SRV_KEY}" \
-            -H "Content-Type: application/json" \
-            -d '{"status": "failed", "error": "Build failed"}' || true
+        webView.loadUrl("$APP_URL");
+    }
+}
+EOF
+
+    # app/build.gradle
+    cat > app/build.gradle <<EOF
+apply plugin: 'com.android.application'
+
+android {
+    namespace "$PKG_NAME"
+    compileSdk 34
+    
+    defaultConfig {
+        applicationId "$PKG_NAME"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
+EOF
+
+    # settings.gradle
+    cat > settings.gradle <<'EOF'
+rootProject.name = "WebViewApp"
+include ':app'
+EOF
+
+    # build.gradle (project level)
+    cat > build.gradle <<'EOF'
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.0.2'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+EOF
