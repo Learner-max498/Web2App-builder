@@ -62,148 +62,37 @@ jobs:
           mkdir -p "$JAVA_DIR"
           mkdir -p app/src/main/res/{mipmap-hdpi,mipmap-mdpi,mipmap-xhdpi,mipmap-xxhdpi,mipmap-xxxhdpi,mipmap-anydpi-v26,drawable,values}
 
-          # styles.xml
           printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<resources>' '    <style name="AppTheme" parent="android:Theme.Black">' '        <item name="android:windowBackground">@android:color/black</item>' '        <item name="android:windowNoTitle">true</item>' '        <item name="android:windowFullscreen">false</item>' '    </style>' '</resources>' > app/src/main/res/values/styles.xml
 
-          # Default icon (purple square)
           convert -size 192x192 xc:'#8c36ff' app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
           convert -size 144x144 xc:'#8c36ff' app/src/main/res/mipmap-xxhdpi/ic_launcher.png
           convert -size 96x96 xc:'#8c36ff' app/src/main/res/mipmap-xhdpi/ic_launcher.png
           convert -size 72x72 xc:'#8c36ff' app/src/main/res/mipmap-hdpi/ic_launcher.png
           convert -size 48x48 xc:'#8c36ff' app/src/main/res/mipmap-mdpi/ic_launcher.png
 
-          # Adaptive icon XML
-          cat > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml <<'EOF'
-<?xml version="1.0" encoding="utf-8"?>
-<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">
-    <background android:drawable="@android:color/transparent"/>
-    <foreground android:drawable="@mipmap/ic_launcher"/>
-</adaptive-icon>
-EOF
+          printf '%s\n' '<?xml version="1.0" encoding="utf-8"?>' '<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">' '    <background android:drawable="@android:color/transparent"/>' '    <foreground android:drawable="@mipmap/ic_launcher"/>' '</adaptive-icon>' > app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml
 
-          # Override with custom icon if provided
           if [ -n "$ICON_PATH" ]; then
+            echo "Downloading icon from: ${PROJECT_URL}/storage/v1/object/public/app-icons/${ICON_PATH}"
             curl -sf "${PROJECT_URL}/storage/v1/object/public/app-icons/${ICON_PATH}" -o /tmp/icon.png || true
+            echo "Icon file check: $(file /tmp/icon.png 2>&1)"
             if file /tmp/icon.png | grep -q image; then
+              echo "Custom icon found, applying..."
               convert /tmp/icon.png -resize 192x192 app/src/main/res/mipmap-xxxhdpi/ic_launcher.png
               convert /tmp/icon.png -resize 144x144 app/src/main/res/mipmap-xxhdpi/ic_launcher.png
               convert /tmp/icon.png -resize 96x96   app/src/main/res/mipmap-xhdpi/ic_launcher.png
               convert /tmp/icon.png -resize 72x72   app/src/main/res/mipmap-hdpi/ic_launcher.png
               convert /tmp/icon.png -resize 48x48   app/src/main/res/mipmap-mdpi/ic_launcher.png
+            else
+              echo "Custom icon download failed, using default"
             fi
           fi
 
-          # AndroidManifest.xml
-          cat > app/src/main/AndroidManifest.xml <<EOF
-<?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="$PKG_NAME">
+          printf '<?xml version="1.0" encoding="utf-8"?>\n<manifest xmlns:android="http://schemas.android.com/apk/res/android">\n\n    <uses-permission android:name="android.permission.INTERNET"/>\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>\n\n    <application\n        android:label="%s"\n        android:icon="@mipmap/ic_launcher"\n        android:roundIcon="@mipmap/ic_launcher"\n        android:theme="@style/AppTheme"\n        android:usesCleartextTraffic="true">\n\n        <activity\n            android:name=".MainActivity"\n            android:exported="true">\n\n            <intent-filter>\n                <action android:name="android.intent.action.MAIN"/>\n                <category android:name="android.intent.category.LAUNCHER"/>\n            </intent-filter>\n\n        </activity>\n\n    </application>\n\n</manifest>\n' "$APP_NAME" > app/src/main/AndroidManifest.xml
 
-    <uses-permission android:name="android.permission.INTERNET"/>
-    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE"/>
+          printf 'package %s;\n\nimport android.app.Activity;\nimport android.os.Bundle;\nimport android.webkit.WebView;\nimport android.webkit.WebViewClient;\nimport android.webkit.WebSettings;\n\npublic class MainActivity extends Activity {\n\n    @Override\n    protected void onCreate(Bundle savedInstanceState) {\n        super.onCreate(savedInstanceState);\n\n        WebView webView = new WebView(this);\n        setContentView(webView);\n\n        WebSettings s = webView.getSettings();\n        s.setJavaScriptEnabled(true);\n        s.setDomStorageEnabled(true);\n\n        webView.setWebViewClient(new WebViewClient());\n\n        webView.loadUrl("%s");\n    }\n}\n' "$PKG_NAME" "$APP_URL" > "$JAVA_DIR/MainActivity.java"
 
-    <application
-        android:label="$APP_NAME"
-        android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher"
-        android:theme="@style/AppTheme"
-        android:usesCleartextTraffic="true">
-
-        <activity
-            android:name=".MainActivity"
-            android:exported="true">
-
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN"/>
-                <category android:name="android.intent.category.LAUNCHER"/>
-            </intent-filter>
-
-        </activity>
-
-    </application>
-
-</manifest>
-EOF
-
-          # MainActivity.java
-          cat > ${JAVA_DIR}/MainActivity.java <<EOF
-package $PKG_NAME;
-
-import android.app.Activity;
-import android.os.Bundle;
-import android.webkit.WebView;
-import android.webkit.WebViewClient;
-import android.webkit.WebSettings;
-
-public class MainActivity extends Activity {
-
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-
-        WebView webView = new WebView(this);
-        setContentView(webView);
-
-        WebSettings s = webView.getSettings();
-        s.setJavaScriptEnabled(true);
-        s.setDomStorageEnabled(true);
-
-        webView.setWebViewClient(new WebViewClient());
-
-        webView.loadUrl("$APP_URL");
-    }
-}
-EOF
-
-          # app/build.gradle
-          cat > app/build.gradle <<EOF
-apply plugin: 'com.android.application'
-
-android {
-    namespace "$PKG_NAME"
-    compileSdk 34
-    
-    defaultConfig {
-        applicationId "$PKG_NAME"
-        minSdk 21
-        targetSdk 34
-        versionCode 1
-        versionName "1.0"
-    }
-    
-    buildTypes {
-        release {
-            minifyEnabled false
-        }
-    }
-}
-EOF
-
-          # settings.gradle
-          cat > settings.gradle <<'EOF'
-rootProject.name = "WebViewApp"
-include ':app'
-EOF
-
-          # build.gradle (project level)
-          cat > build.gradle <<'EOF'
-buildscript {
-    repositories {
-        google()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.2'
-    }
-}
-
-allprojects {
-    repositories {
-        google()
-        mavenCentral()
-    }
-}
-EOF
+          printf '%s\n' 'apply plugin: "com.android.application"' "android {" "    namespace \"${PKG_NAME}\"" '    compileSdk 34' '    defaultConfig {' "        applicationId \"${PKG_NAME}\"" '        minSdk 21' '        targetSdk 34' '        versionCode 1' '        versionName "1.0"' '    }' '    buildTypes {' '        release {' '            minifyEnabled false' '        }' '    }' '}' > app/build.gradle
 
       - name: Create Gradle Build Files
         run: |
